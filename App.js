@@ -166,7 +166,6 @@ class Omnivore {
     // Поиск ближайшей еды (растение или травоядное)
     let closestFood = null;
     let minDist = Infinity;
-    let foodType = null;
 
     // Поиск растений
     plants.forEach(plant => {
@@ -177,7 +176,6 @@ class Omnivore {
       if (dist < minDist && dist < 150) {
         minDist = dist;
         closestFood = plant;
-        foodType = 'plant';
       }
     });
     
@@ -190,7 +188,6 @@ class Omnivore {
       if (dist < minDist && dist < 200) {
         minDist = dist;
         closestFood = prey;
-        foodType = 'herbivore';
       }
     });
     
