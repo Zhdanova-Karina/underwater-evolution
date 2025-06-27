@@ -167,7 +167,7 @@ class Omnivore {
     let closestFood = null;
     let minDist = Infinity;
     let foodType = null;
-    
+
     // Поиск растений
     plants.forEach(plant => {
       const dx = plant.x - this.x;
@@ -350,49 +350,62 @@ function UnderwaterEvolution() {
     }));
   };
 
-  // Игровой цикл
   useEffect(() => {
     if (!isRunning) return;
     
     const gameLoop = setInterval(() => {
-      setStats(prev => ({ ...prev, generation: prev.generation + 1 }));
-      
-      // Обновление состояния всех организмов
       setOrganisms(prevOrganisms => {
-        const newOrganisms = [];
-        const plantsCopy = [...plants];
-        let newPlants = [...plants];
+        // Создаем копии для работы внутри этого цикла
+        const newOrganisms = prevOrganisms.map(org => {
+          // Правильное клонирование с сохранением методов
+          if (org.type === 'herbivore') {
+            return new Herbivore(org.id, org.x, org.y);
+          } else if (org.type === 'predator') {
+            return new Predator(org.id, org.x, org.y);
+          } else if (org.type === 'omnivore') {
+            return new Omnivore(org.id, org.x, org.y);
+          }
+          return org;
+        });
         
-        // Копия травоядных для всеядных
-        const herbivoresCopy = prevOrganisms.filter(o => o.type === 'herbivore');
+        const newPlants = [...plants];
+        const organismsToAdd = [];
         
-        for (const organism of prevOrganisms) {
-          if (organism.energy <= 0) continue; // Удалить мертвых
+        // Обработка каждого организма
+        for (const organism of newOrganisms) {
+          if (organism.energy <= 0) continue;
           
-          // Движение в зависимости от типа
+          // Движение и питание в зависимости от типа
           if (organism.type === 'herbivore') {
-            organism.move(plantsCopy);
-            const eatenIndex = organism.eat(plantsCopy);
+            organism.move(newPlants);
+            const eatenIndex = organism.eat(newPlants);
             if (eatenIndex !== -1) {
-              newPlants = newPlants.filter((_, i) => i !== eatenIndex);
+              newPlants.splice(eatenIndex, 1);
             }
           } else if (organism.type === 'predator') {
-            organism.move(herbivoresCopy);
-            const eatenIndex = organism.eat(herbivoresCopy);
+            const herbivores = newOrganisms.filter(o => o.type === 'herbivore');
+            organism.move(herbivores);
+            const eatenIndex = organism.eat(herbivores);
             if (eatenIndex !== -1) {
-              // Удалить съеденного травоядного
-              const herbivoreId = herbivoresCopy[eatenIndex].id;
-              prevOrganisms = prevOrganisms.filter(o => o.id !== herbivoreId);
+              const preyId = herbivores[eatenIndex].id;
+              const preyIndex = newOrganisms.findIndex(o => o.id === preyId);
+              if (preyIndex !== -1) {
+                newOrganisms[preyIndex].energy = 0;
+              }
             }
           } else if (organism.type === 'omnivore') {
-            organism.move(plantsCopy, herbivoresCopy);
-            const eaten = organism.eat(plantsCopy, herbivoresCopy);
+            const herbivores = newOrganisms.filter(o => o.type === 'herbivore');
+            organism.move(newPlants, herbivores);
+            const eaten = organism.eat(newPlants, herbivores);
             if (eaten) {
               if (eaten.type === 'plant') {
-                newPlants = newPlants.filter((_, i) => i !== eaten.index);
+                newPlants.splice(eaten.index, 1);
               } else {
-                const herbivoreId = herbivoresCopy[eaten.index].id;
-                prevOrganisms = prevOrganisms.filter(o => o.id !== herbivoreId);
+                const preyId = herbivores[eaten.index].id;
+                const preyIndex = newOrganisms.findIndex(o => o.id === preyId);
+                if (preyIndex !== -1) {
+                  newOrganisms[preyIndex].energy = 0;
+                }
               }
             }
           }
@@ -400,44 +413,38 @@ function UnderwaterEvolution() {
           // Размножение
           const offspring = organism.reproduce();
           if (offspring) {
-            newOrganisms.push(offspring);
+            organismsToAdd.push(offspring);
           }
-          
-          newOrganisms.push(organism);
         }
         
-        setPlants(newPlants);
-        return newOrganisms;
-      });
-      
-      // Добавление случайных растений
-      if (Math.random() > 0.7) {
-        setPlants(prev => [...prev, new Plant(Date.now(), Math.random() * 800, Math.random() * 600)]);
-      }
-      
-      // Обновление статистики
-      setOrganisms(prev => {
-        const herbivores = prev.filter(o => o.type === 'herbivore').length;
-        const predators = prev.filter(o => o.type === 'predator').length;
-        const omnivores = prev.filter(o => o.type === 'omnivore').length;
+        // Фильтрация мертвых организмов
+        const aliveOrganisms = newOrganisms.filter(o => o.energy > 0);
         
-        setStats(prevStats => ({
-          ...prevStats,
-          herbivores,
-          predators,
-          omnivores,
-          plants: plants.length
+        // Добавление новых растений
+        if (Math.random() > 0.7) {
+          newPlants.push(new Plant(Date.now(), Math.random() * 800, Math.random() * 600));
+        }
+        
+        // Обновление статистики
+        setStats(prev => ({
+          ...prev,
+          herbivores: aliveOrganisms.filter(o => o.type === 'herbivore').length,
+          predators: aliveOrganisms.filter(o => o.type === 'predator').length,
+          omnivores: aliveOrganisms.filter(o => o.type === 'omnivore').length,
+          plants: newPlants.length,
+          generation: prev.generation + 1
         }));
         
-        return prev;
+        // Обновление растений
+        setPlants(newPlants);
+        
+        // Возвращаем обновленные организмы + потомство
+        return [...aliveOrganisms, ...organismsToAdd];
       });
-      
-      // Рендеринг сцены
-      renderScene();
     }, speed);
     
     return () => clearInterval(gameLoop);
-  }, [isRunning, plants, speed]);
+  }, [isRunning, speed, plants]); 
 
   // Визуализация сцены
   const renderScene = () => {
