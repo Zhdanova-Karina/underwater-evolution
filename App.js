@@ -268,13 +268,20 @@ function UnderwaterEvolution() {
   const [organisms, setOrganisms] = useState([]);
   const [plants, setPlants] = useState([]);
   const [isRunning, setIsRunning] = useState(false);
-  const [speedMultiplier, setSpeedMultiplier] = useState(1); // 1x по умолчанию
+  const [speedMultiplier, setSpeedMultiplier] = useState(1);
   const [stats, setStats] = useState({
     herbivores: 0,
     predators: 0,
     omnivores: 0,
     plants: 0,
     generation: 0
+  });
+  
+  const [addCounts, setAddCounts] = useState({
+    herbivore: 1,
+    predator: 1,
+    omnivore: 1,
+    plant: 1
   });
 
   // Базовый интервал обновления (в мс)
@@ -316,37 +323,49 @@ function UnderwaterEvolution() {
     setIsRunning(false);
   };
 
-  // Добавление нового организма
-  const addOrganism = (type) => {
-    const newOrganism = (() => {
-      switch(type) {
-        case 'herbivore':
-          return new Herbivore(Date.now(), Math.random() * 1300, Math.random() * 840);
-        case 'predator':
-          return new Predator(Date.now(), Math.random() * 1300, Math.random() * 840);
-        case 'omnivore':
-          return new Omnivore(Date.now(), Math.random() * 1300, Math.random() * 840);
-        default:
-          return null;
-      }
-    })();
+  // Добавление
+const addOrganism = (type) => {
+    const count = addCounts[type];
+    const newOrganisms = [];
     
-    if (newOrganism) {
-      setOrganisms(prev => [...prev, newOrganism]);
-      setStats(prev => ({
-        ...prev,
-        [type + 's']: prev[type + 's'] + 1
-      }));
+    for (let i = 0; i < count; i++) {
+      const newOrganism = (() => {
+        switch(type) {
+          case 'herbivore':
+            return new Herbivore(Date.now() + i, Math.random() * 1300, Math.random() * 840);
+          case 'predator':
+            return new Predator(Date.now() + i, Math.random() * 1300, Math.random() * 840);
+          case 'omnivore':
+            return new Omnivore(Date.now() + i, Math.random() * 1300, Math.random() * 840);
+          default:
+            return null;
+        }
+      })();
+      
+      if (newOrganism) {
+        newOrganisms.push(newOrganism);
+      }
     }
-  };
-
-  // Добавление нового растения
-  const addPlant = () => {
-    const newPlant = new Plant(Date.now(), Math.random() * 1300, Math.random() * 840);
-    setPlants(prev => [...prev, newPlant]);
+    
+    setOrganisms(prev => [...prev, ...newOrganisms]);
     setStats(prev => ({
       ...prev,
-      plants: prev.plants + 1
+      [type + 's']: prev[type + 's'] + count
+    }));
+};
+
+const addPlant = () => {
+    const count = addCounts.plant;
+    const newPlants = [];
+    
+    for (let i = 0; i < count; i++) {
+      newPlants.push(new Plant(Date.now() + i, Math.random() * 1300, Math.random() * 840));
+    }
+    
+    setPlants(prev => [...prev, ...newPlants]);
+    setStats(prev => ({
+      ...prev,
+      plants: prev.plants + count
     }));
   };
 
@@ -526,55 +545,104 @@ function UnderwaterEvolution() {
       <h1>Эволюция Подводного Мира</h1>
       
       <div className="simulation-container">
-  {/* Левая панель - статистика */}
-  <div className="stats-panel">
-    <h2>Статистика</h2>
-    <p>Поколение: {stats.generation}</p>
-    <p>Травоядные: {stats.herbivores}</p>
-    <p>Хищники: {stats.predators}</p>
-    <p>Всеядные: {stats.omnivores}</p>
-    <p>Растения: {stats.plants}</p>
-  </div>
+        {/* Левая панель - статистика */}
+        <div className="stats-panel">
+          <h2>Статистика</h2>
+          <p>Поколение: {stats.generation}</p>
+          <p>Травоядные: {stats.herbivores}</p>
+          <p>Хищники: {stats.predators}</p>
+          <p>Всеядные: {stats.omnivores}</p>
+          <p>Растения: {stats.plants}</p>
+        </div>
 
-  {/* Центр - холст симуляции */}
-  <canvas 
-    ref={canvasRef} 
-    width={1300}  // Уменьшил ширину для лучшего размещения
-    height={840} 
-    className="simulation-canvas"
-  />
+        {/* Центр - холст симуляции */}
+        <canvas 
+          ref={canvasRef} 
+          width={1300}
+          height={840} 
+          className="simulation-canvas"
+        />
 
-  {/* Правая панель - управление (остается как было) */}
-  <div className="controls-panel">
-          
+        {/* Правая панель - управление */}
+        <div className="controls-panel">
           <div className="speed-control">
-  <h2>Скорость: {speedMultiplier}x</h2>
-  <input 
-    type="range" 
-    min="0.5" 
-    max="4" 
-    step="0.1"
-    value={speedMultiplier} 
-    onChange={(e) => setSpeedMultiplier(parseFloat(e.target.value))} 
-  />
-  <div className="speed-labels">
-    <span style={{ left: '0%' }}>0.5x</span>
-    <span style={{ left: '14.28%' }}>1x</span>
-    <span style={{ left: '42.85%' }}>2x</span>
-    <span style={{ left: '71.42%' }}>3x</span>
-    <span style={{ left: '100%', transform: 'translateX(-100%)' }}>4x</span>
-  </div>
-</div>
+            <h2>Скорость: {speedMultiplier}x</h2>
+            <input 
+              type="range" 
+              min="0.5" 
+              max="4" 
+              step="0.1"
+              value={speedMultiplier} 
+              onChange={(e) => setSpeedMultiplier(parseFloat(e.target.value))} 
+            />
+            <div className="speed-labels">
+              <span style={{ left: '0%' }}>0.5x</span>
+              <span style={{ left: '14.28%' }}>1x</span>
+              <span style={{ left: '42.85%' }}>2x</span>
+              <span style={{ left: '71.42%' }}>3x</span>
+              <span style={{ left: '100%', transform: 'translateX(-100%)' }}>4x</span>
+            </div>
+          </div>
           
           <div className="add-organisms">
             <h2>Добавить</h2>
-            <button onClick={() => addOrganism('herbivore')}>Травоядное</button>
-            <button onClick={() => addOrganism('predator')}>Хищник</button>
-            <button onClick={() => addOrganism('omnivore')}>Всеядное</button>
-            <button onClick={addPlant}>Растение</button>
+            
+            <div className="add-control">
+              <input 
+                type="number" 
+                min="1" 
+                max="100"
+                value={addCounts.herbivore}
+                onChange={(e) => setAddCounts(prev => ({
+                  ...prev,
+                  herbivore: Math.max(1, parseInt(e.target.value) || 1)
+                }))}
+              />
+              <button onClick={() => addOrganism('herbivore')}>Травоядное</button>
+            </div>
+            
+            <div className="add-control">
+              <input 
+                type="number" 
+                min="1" 
+                max="100"
+                value={addCounts.predator}
+                onChange={(e) => setAddCounts(prev => ({
+                  ...prev,
+                  predator: Math.max(1, parseInt(e.target.value) || 1)
+                }))}
+              />
+              <button onClick={() => addOrganism('predator')}>Хищник</button>
+            </div>
+            
+            <div className="add-control">
+              <input 
+                type="number" 
+                min="1" 
+                max="100"
+                value={addCounts.omnivore}
+                onChange={(e) => setAddCounts(prev => ({
+                  ...prev,
+                  omnivore: Math.max(1, parseInt(e.target.value) || 1)
+                }))}
+              />
+              <button onClick={() => addOrganism('omnivore')}>Всеядное</button>
+            </div>
+            
+            <div className="add-control">
+              <input 
+                type="number" 
+                min="1" 
+                max="100"
+                value={addCounts.plant}
+                onChange={(e) => setAddCounts(prev => ({
+                  ...prev,
+                  plant: Math.max(1, parseInt(e.target.value) || 1)
+                }))}
+              />
+              <button onClick={addPlant}>Растение</button>
+            </div>
           </div>
-          
-         
           
           <div className="simulation-controls">
             <h2>Управление</h2>
@@ -588,5 +656,4 @@ function UnderwaterEvolution() {
     </div>
   );
 }
-
 export default UnderwaterEvolution;
