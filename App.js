@@ -268,7 +268,7 @@ function UnderwaterEvolution() {
   const [organisms, setOrganisms] = useState([]);
   const [plants, setPlants] = useState([]);
   const [isRunning, setIsRunning] = useState(false);
-  const [speed, setSpeed] = useState(100);
+  const [speedMultiplier, setSpeedMultiplier] = useState(1); // 1x по умолчанию
   const [stats, setStats] = useState({
     herbivores: 0,
     predators: 0,
@@ -276,6 +276,9 @@ function UnderwaterEvolution() {
     plants: 0,
     generation: 0
   });
+
+  // Базовый интервал обновления (в мс)
+  const baseSpeed = 100;
 
   // Инициализация симуляции
   useEffect(() => {
@@ -349,6 +352,9 @@ function UnderwaterEvolution() {
 
   useEffect(() => {
     if (!isRunning) return;
+    
+    // Рассчитываем фактический интервал с учетом множителя скорости
+    const actualSpeed = baseSpeed / speedMultiplier;
     
     const gameLoop = setInterval(() => {
       setOrganisms(prevOrganisms => {
@@ -438,10 +444,10 @@ function UnderwaterEvolution() {
         // Возвращаем обновленные организмы + потомство
         return [...aliveOrganisms, ...organismsToAdd];
       });
-    }, speed);
+    }, actualSpeed);
     
     return () => clearInterval(gameLoop);
-  }, [isRunning, speed, plants]); 
+  }, [isRunning, speedMultiplier, plants]);
 
   // Визуализация сцены
   const renderScene = () => {
@@ -513,7 +519,7 @@ function UnderwaterEvolution() {
   // Обновление сцены при изменениях
   useEffect(() => {
     renderScene();
-  }, [organisms, plants]);
+  }, [organisms, plants, renderScene]);
 
   return (
     <div className="evolution-simulator">
@@ -538,17 +544,23 @@ function UnderwaterEvolution() {
           </div>
           
           <div className="speed-control">
-            <h2>Скорость</h2>
-            <input 
-              type="range" 
-              min="50" 
-              max="500" 
-              step="50"
-              value={speed} 
-              onChange={(e) => setSpeed(500 - e.target.value)} 
-            />
-            <p>{500 - speed} мс/цикл</p>
-          </div>
+  <h2>Скорость: {speedMultiplier}x</h2>
+  <input 
+    type="range" 
+    min="0.5" 
+    max="4" 
+    step="0.1"
+    value={speedMultiplier} 
+    onChange={(e) => setSpeedMultiplier(parseFloat(e.target.value))} 
+  />
+  <div className="speed-labels">
+    <span style={{ left: '0%' }}>0.5x</span>
+    <span style={{ left: '14.28%' }}>1x</span>
+    <span style={{ left: '42.85%' }}>2x</span>
+    <span style={{ left: '71.42%' }}>3x</span>
+    <span style={{ left: '100%', transform: 'translateX(-100%)' }}>4x</span>
+  </div>
+</div>
           
           <div className="add-organisms">
             <h2>Добавить организмы</h2>
