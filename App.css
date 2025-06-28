@@ -120,3 +120,27 @@ button:active {
   width: 100%;
   margin: 5px 0;
 }
+
+.add-control {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.add-control input {
+  width: 60px;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  text-align: center;
+}
+
+.add-control input:focus {
+  outline: none;
+  border-color: #2a9df4;
+}
+
+.add-control button {
+  flex-grow: 1;
+}
