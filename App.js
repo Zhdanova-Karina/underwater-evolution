@@ -7,7 +7,7 @@ class Herbivore {
     this.id = id;
     this.x = x;
     this.y = y;
-    this.size = 8;
+    this.size = 10;
     this.speed = 1 + Math.random() * 2;
     this.energy = 100;
     this.type = 'herbivore';
@@ -41,7 +41,7 @@ class Herbivore {
     }
     
     // Ограничение движения в пределах холста
-    this.x = Math.max(10, Math.min(790, this.x));
+    this.x = Math.max(10, Math.min(1290, this.x));
     this.y = Math.max(10, Math.min(590, this.y));
     
     // Расход энергии
@@ -81,7 +81,7 @@ class Predator {
     this.id = id;
     this.x = x;
     this.y = y;
-    this.size = 12;
+    this.size = 10;
     this.speed = 1.5 + Math.random() * 2;
     this.energy = 100;
     this.type = 'predator';
@@ -115,7 +115,7 @@ class Predator {
     }
     
     // Ограничение движения в пределах холста
-    this.x = Math.max(10, Math.min(790, this.x));
+    this.x = Math.max(10, Math.min(1290, this.x));
     this.y = Math.max(10, Math.min(590, this.y));
     
     // Расход энергии
@@ -202,7 +202,7 @@ class Omnivore {
     }
     
     // Ограничение движения в пределах холста
-    this.x = Math.max(10, Math.min(790, this.x));
+    this.x = Math.max(10, Math.min(1290, this.x));
     this.y = Math.max(10, Math.min(590, this.y));
     
     // Расход энергии
@@ -289,19 +289,19 @@ function UnderwaterEvolution() {
     // Создание начальных организмов
     const initialOrganisms = [];
     for (let i = 0; i < 5; i++) {
-      initialOrganisms.push(new Herbivore(i, Math.random() * 800, Math.random() * 600));
+      initialOrganisms.push(new Herbivore(i, Math.random() * 1300, Math.random() * 600));
     }
     for (let i = 5; i < 10; i++) {
-      initialOrganisms.push(new Predator(i, Math.random() * 800, Math.random() * 600));
+      initialOrganisms.push(new Predator(i, Math.random() * 1300, Math.random() * 600));
     }
     for (let i = 10; i < 15; i++) {
-      initialOrganisms.push(new Omnivore(i, Math.random() * 800, Math.random() * 600));
+      initialOrganisms.push(new Omnivore(i, Math.random() * 1300, Math.random() * 600));
     }
     
     // Создание начальных растений
     const initialPlants = [];
     for (let i = 0; i < 20; i++) {
-      initialPlants.push(new Plant(i, Math.random() * 800, Math.random() * 600));
+      initialPlants.push(new Plant(i, Math.random() * 1300, Math.random() * 600));
     }
     
     setOrganisms(initialOrganisms);
@@ -321,11 +321,11 @@ function UnderwaterEvolution() {
     const newOrganism = (() => {
       switch(type) {
         case 'herbivore':
-          return new Herbivore(Date.now(), Math.random() * 800, Math.random() * 600);
+          return new Herbivore(Date.now(), Math.random() * 1300, Math.random() * 600);
         case 'predator':
-          return new Predator(Date.now(), Math.random() * 800, Math.random() * 600);
+          return new Predator(Date.now(), Math.random() * 1300, Math.random() * 600);
         case 'omnivore':
-          return new Omnivore(Date.now(), Math.random() * 800, Math.random() * 600);
+          return new Omnivore(Date.now(), Math.random() * 1300, Math.random() * 600);
         default:
           return null;
       }
@@ -342,7 +342,7 @@ function UnderwaterEvolution() {
 
   // Добавление нового растения
   const addPlant = () => {
-    const newPlant = new Plant(Date.now(), Math.random() * 800, Math.random() * 600);
+    const newPlant = new Plant(Date.now(), Math.random() * 1300, Math.random() * 600);
     setPlants(prev => [...prev, newPlant]);
     setStats(prev => ({
       ...prev,
@@ -425,7 +425,7 @@ function UnderwaterEvolution() {
         
         // Добавление новых растений
         if (Math.random() > 0.7) {
-          newPlants.push(new Plant(Date.now(), Math.random() * 800, Math.random() * 600));
+          newPlants.push(new Plant(Date.now(), Math.random() * 1300, Math.random() * 600));
         }
         
         // Обновление статистики
@@ -455,11 +455,11 @@ function UnderwaterEvolution() {
     if (!canvas) return;
     
     const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, 800, 600);
+    ctx.clearRect(0, 0, 1300, 600);
     
     // Рисование фона (океан)
-    ctx.fillStyle = '#1e3f66';
-    ctx.fillRect(0, 0, 800, 600);
+    ctx.fillStyle = '#5c9eee';
+    ctx.fillRect(0, 0, 1300, 600);
     
     // Рисование растений
     plants.forEach(plant => {
@@ -526,22 +526,26 @@ function UnderwaterEvolution() {
       <h1>Эволюция Подводного Мира</h1>
       
       <div className="simulation-container">
-        <canvas 
-          ref={canvasRef} 
-          width={800} 
-          height={600} 
-          className="simulation-canvas"
-        />
-        
-        <div className="controls-panel">
-          <div className="stats">
-            <h2>Статистика</h2>
-            <p>Поколение: {stats.generation}</p>
-            <p>Травоядные: {stats.herbivores}</p>
-            <p>Хищники: {stats.predators}</p>
-            <p>Всеядные: {stats.omnivores}</p>
-            <p>Растения: {stats.plants}</p>
-          </div>
+  {/* Левая панель - статистика */}
+  <div className="stats-panel">
+    <h2>Статистика</h2>
+    <p>Поколение: {stats.generation}</p>
+    <p>Травоядные: {stats.herbivores}</p>
+    <p>Хищники: {stats.predators}</p>
+    <p>Всеядные: {stats.omnivores}</p>
+    <p>Растения: {stats.plants}</p>
+  </div>
+
+  {/* Центр - холст симуляции */}
+  <canvas 
+    ref={canvasRef} 
+    width={1300}  // Уменьшил ширину для лучшего размещения
+    height={600} 
+    className="simulation-canvas"
+  />
+
+  {/* Правая панель - управление (остается как было) */}
+  <div className="controls-panel">
           
           <div className="speed-control">
   <h2>Скорость: {speedMultiplier}x</h2>
