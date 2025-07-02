@@ -7,21 +7,46 @@ class Herbivore {
     this.id = id;
     this.x = x;
     this.y = y;
-    this.size = 10; // Начальный размер
-    this.maxSize = 20; // Максимальный размер взрослой особи
+    this.size = 10;
+    this.maxSize = 20;
     this.speed = 1 + Math.random() * 2;
     this.energy = 100;
     this.type = 'herbivore';
     this.color = `hsl(120, 70%, 50%)`;
-    this.eatenCount = 0; // Счетчик съеденных растений
-    this.isAdult = false; // Флаг взрослой особи
-    this.reproductionCooldown = 0; // Таймер перед следующим размножением
+    this.eatenCount = 0;
+    this.isAdult = false;
+    this.reproductionCooldown = 0;
+    this.lifespan = 300 + Math.floor(Math.random() * 100);
+    this.age = 0;
+    this.reproductionDeathChance = 0.1;
   }
 
-  move(plants) {
+  findMate(herbivores) {
+    if (!this.isAdult || this.reproductionCooldown > 0) return null;
+    
+    let closestMate = null;
+    let minDist = Infinity;
+    
+    herbivores.forEach(mate => {
+      if (mate.id === this.id || !mate.isAdult || mate.reproductionCooldown > 0) return;
+      
+      const dx = mate.x - this.x;
+      const dy = mate.y - this.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      
+      if (dist < minDist && dist < 250) {
+        minDist = dist;
+        closestMate = mate;
+      }
+    });
+    
+    return closestMate;
+  }
+
+  move(plants, herbivores) {
     if (this.reproductionCooldown > 0) this.reproductionCooldown--;
     
-    // Поиск ближайшего растения
+    const mate = this.isAdult ? this.findMate(herbivores) : null;
     let closestPlant = null;
     let minDist = Infinity;
     
@@ -36,8 +61,11 @@ class Herbivore {
       }
     });
     
-    // Движение к растению или случайное блуждание
-    if (closestPlant) {
+    if (mate) {
+      const angle = Math.atan2(mate.y - this.y, mate.x - this.x);
+      this.x += Math.cos(angle) * this.speed;
+      this.y += Math.sin(angle) * this.speed;
+    } else if (closestPlant) {
       const angle = Math.atan2(closestPlant.y - this.y, closestPlant.x - this.x);
       this.x += Math.cos(angle) * this.speed;
       this.y += Math.sin(angle) * this.speed;
@@ -46,11 +74,8 @@ class Herbivore {
       this.y += (Math.random() - 0.5) * this.speed * 2;
     }
     
-    // Ограничение движения в пределах холста
     this.x = Math.max(10, Math.min(1290, this.x));
     this.y = Math.max(10, Math.min(830, this.y));
-    
-    // Расход энергии
     this.energy -= 0.1;
   }
   
@@ -65,30 +90,52 @@ class Herbivore {
         this.energy += 30;
         this.eatenCount++;
         
-        // Проверка на достижение взрослого состояния
-        if (!this.isAdult && this.eatenCount >= 5) {
+        if (!this.isAdult && this.eatenCount >= 3) {
           this.isAdult = true;
           this.size = this.maxSize;
         }
         
-        return i; // Индекс съеденного растения
+        return i;
       }
     }
     return -1;
   }
   
   reproduce(other) {
-    // Размножаемся только если оба взрослые и нет кулдауна
-    if (this.isAdult && other && other.isAdult && this.reproductionCooldown === 0 && other.reproductionCooldown === 0) {
-      this.reproductionCooldown = 50; // Устанавливаем кулдаун
-      other.reproductionCooldown = 50;
-      
-      return new Herbivore(
-        Date.now(), 
-        this.x + (Math.random() - 0.5) * 50,
-        this.y + (Math.random() - 0.5) * 50
+    if (!this.isAdult || !other?.isAdult || 
+        this.reproductionCooldown > 0 || 
+        other.reproductionCooldown > 0) {
+      return null;
+    }
+
+    const cooldowns = {
+      herbivore: 60,
+      predator: 80,
+      omnivore: 70
+    };
+    
+    this.reproductionCooldown = cooldowns[this.type];
+    other.reproductionCooldown = cooldowns[this.type];
+
+    const killParent = (org) => {
+      if (Math.random() < org.reproductionDeathChance) {
+        org.energy = 0;
+        return true;
+      }
+      return false;
+    };
+
+    const parent1Died = killParent(this);
+    const parent2Died = killParent(other);
+
+    if (!parent1Died || !parent2Died) {
+      return new this.constructor(
+        Date.now(),
+        (this.x + other.x) / 2 + (Math.random() - 0.5) * 30,
+        (this.y + other.y) / 2 + (Math.random() - 0.5) * 30
       );
     }
+    
     return null;
   }
 }
@@ -98,21 +145,46 @@ class Predator {
     this.id = id;
     this.x = x;
     this.y = y;
-    this.size = 10; // Начальный размер
-    this.maxSize = 20; // Максимальный размер взрослой особи
+    this.size = 10;
+    this.maxSize = 20;
     this.speed = 1.5 + Math.random() * 2;
     this.energy = 100;
     this.type = 'predator';
     this.color = `hsl(0, 80%, 50%)`;
-    this.eatenCount = 0; // Счетчик съеденных жертв
-    this.isAdult = false; // Флаг взрослой особи
-    this.reproductionCooldown = 0; // Таймер перед следующим размножением
+    this.eatenCount = 0;
+    this.isAdult = false;
+    this.reproductionCooldown = 0;
+    this.lifespan = 200 + Math.floor(Math.random() * 50);
+    this.age = 0;
+    this.reproductionDeathChance = 0.2;
   }
 
-  move(herbivores) {
+  findMate(predators) {
+    if (!this.isAdult || this.reproductionCooldown > 0) return null;
+    
+    let closestMate = null;
+    let minDist = Infinity;
+    
+    predators.forEach(mate => {
+      if (mate.id === this.id || !mate.isAdult || mate.reproductionCooldown > 0) return;
+      
+      const dx = mate.x - this.x;
+      const dy = mate.y - this.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      
+      if (dist < minDist && dist < 250) {
+        minDist = dist;
+        closestMate = mate;
+      }
+    });
+    
+    return closestMate;
+  }
+
+  move(herbivores, omnivores, predators) {
     if (this.reproductionCooldown > 0) this.reproductionCooldown--;
     
-    // Поиск ближайшей добычи
+    const mate = this.isAdult ? this.findMate(predators) : null;
     let closestPrey = null;
     let minDist = Infinity;
     
@@ -127,8 +199,22 @@ class Predator {
       }
     });
     
-    // Движение к добыче или случайное блуждание
-    if (closestPrey) {
+    omnivores.forEach(prey => {
+      const dx = prey.x - this.x;
+      const dy = prey.y - this.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      
+      if (dist < minDist && dist < 300) {
+        minDist = dist;
+        closestPrey = prey;
+      }
+    });
+    
+    if (mate) {
+      const angle = Math.atan2(mate.y - this.y, mate.x - this.x);
+      this.x += Math.cos(angle) * this.speed;
+      this.y += Math.sin(angle) * this.speed;
+    } else if (closestPrey) {
       const angle = Math.atan2(closestPrey.y - this.y, closestPrey.x - this.x);
       this.x += Math.cos(angle) * this.speed;
       this.y += Math.sin(angle) * this.speed;
@@ -137,15 +223,12 @@ class Predator {
       this.y += (Math.random() - 0.5) * this.speed * 2;
     }
     
-    // Ограничение движения в пределах холста
     this.x = Math.max(10, Math.min(1290, this.x));
     this.y = Math.max(10, Math.min(830, this.y));
-    
-    // Расход энергии
     this.energy -= 0.15;
   }
   
-  eat(herbivores) {
+  eat(herbivores, omnivores) {
     for (let i = 0; i < herbivores.length; i++) {
       const prey = herbivores[i];
       const dx = prey.x - this.x;
@@ -156,30 +239,72 @@ class Predator {
         this.energy += 50;
         this.eatenCount++;
         
-        // Проверка на достижение взрослого состояния
         if (!this.isAdult && this.eatenCount >= 5) {
           this.isAdult = true;
           this.size = this.maxSize;
         }
         
-        return i; // Индекс съеденной жертвы
+        return { type: 'herbivore', index: i };
       }
     }
-    return -1;
-  }
-  
-  reproduce(other) {
-    // Размножаемся только если оба взрослые и нет кулдауна
-    if (this.isAdult && other && other.isAdult && this.reproductionCooldown === 0 && other.reproductionCooldown === 0) {
-      this.reproductionCooldown = 60; // Устанавливаем кулдаун
-      other.reproductionCooldown = 60;
+    
+    for (let i = 0; i < omnivores.length; i++) {
+      const prey = omnivores[i];
+      const dx = prey.x - this.x;
+      const dy = prey.y - this.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
       
-      return new Predator(
-        Date.now(), 
-        this.x + (Math.random() - 0.5) * 60,
-        this.y + (Math.random() - 0.5) * 60
+      if (dist < this.size + prey.size) {
+        this.energy += 50;
+        this.eatenCount++;
+        
+        if (!this.isAdult && this.eatenCount >= 5) {
+          this.isAdult = true;
+          this.size = this.maxSize;
+        }
+        
+        return { type: 'omnivore', index: i };
+      }
+    }
+    
+    return null;
+  }
+
+  reproduce(other) {
+    if (!this.isAdult || !other?.isAdult || 
+        this.reproductionCooldown > 0 || 
+        other.reproductionCooldown > 0) {
+      return null;
+    }
+
+    const cooldowns = {
+      herbivore: 60,
+      predator: 80,
+      omnivore: 70
+    };
+    
+    this.reproductionCooldown = cooldowns[this.type];
+    other.reproductionCooldown = cooldowns[this.type];
+
+    const killParent = (org) => {
+      if (Math.random() < org.reproductionDeathChance) {
+        org.energy = 0;
+        return true;
+      }
+      return false;
+    };
+
+    const parent1Died = killParent(this);
+    const parent2Died = killParent(other);
+
+    if (!parent1Died || !parent2Died) {
+      return new this.constructor(
+        Date.now(),
+        (this.x + other.x) / 2 + (Math.random() - 0.5) * 30,
+        (this.y + other.y) / 2 + (Math.random() - 0.5) * 30
       );
     }
+    
     return null;
   }
 }
@@ -189,25 +314,49 @@ class Omnivore {
     this.id = id;
     this.x = x;
     this.y = y;
-    this.size = 10; // Начальный размер
-    this.maxSize = 15; // Максимальный размер взрослой особи
+    this.size = 10;
+    this.maxSize = 15;
     this.speed = 1.2 + Math.random() * 2;
     this.energy = 100;
     this.type = 'omnivore';
     this.color = `hsl(240, 80%, 60%)`;
-    this.eatenCount = 0; // Счетчик съеденной еды
-    this.isAdult = false; // Флаг взрослой особи
-    this.reproductionCooldown = 0; // Таймер перед следующим размножением
+    this.eatenCount = 0;
+    this.isAdult = false;
+    this.reproductionCooldown = 0;
+    this.lifespan = 250 + Math.floor(Math.random() * 70);
+    this.age = 0;
+    this.reproductionDeathChance = 0.15;
   }
 
-  move(plants, herbivores) {
+  findMate(omnivores) {
+    if (!this.isAdult || this.reproductionCooldown > 0) return null;
+    
+    let closestMate = null;
+    let minDist = Infinity;
+    
+    omnivores.forEach(mate => {
+      if (mate.id === this.id || !mate.isAdult || mate.reproductionCooldown > 0) return;
+      
+      const dx = mate.x - this.x;
+      const dy = mate.y - this.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      
+      if (dist < minDist && dist < 250) {
+        minDist = dist;
+        closestMate = mate;
+      }
+    });
+    
+    return closestMate;
+  }
+
+  move(plants, herbivores, predators, omnivores) {
     if (this.reproductionCooldown > 0) this.reproductionCooldown--;
     
-    // Поиск ближайшей еды (растение или травоядное)
+    const mate = this.isAdult ? this.findMate(omnivores) : null;
     let closestFood = null;
     let minDist = Infinity;
 
-    // Поиск растений
     plants.forEach(plant => {
       const dx = plant.x - this.x;
       const dy = plant.y - this.y;
@@ -219,7 +368,6 @@ class Omnivore {
       }
     });
     
-    // Поиск травоядных
     herbivores.forEach(prey => {
       const dx = prey.x - this.x;
       const dy = prey.y - this.y;
@@ -231,8 +379,26 @@ class Omnivore {
       }
     });
     
-    // Движение к еде или случайное блуждание
-    if (closestFood) {
+    if (this.isAdult) {
+      predators.forEach(predator => {
+        if (!predator.isAdult) {
+          const dx = predator.x - this.x;
+          const dy = predator.y - this.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          
+          if (dist < minDist && dist < 200) {
+            minDist = dist;
+            closestFood = predator;
+          }
+        }
+      });
+    }
+    
+    if (mate) {
+      const angle = Math.atan2(mate.y - this.y, mate.x - this.x);
+      this.x += Math.cos(angle) * this.speed;
+      this.y += Math.sin(angle) * this.speed;
+    } else if (closestFood) {
       const angle = Math.atan2(closestFood.y - this.y, closestFood.x - this.x);
       this.x += Math.cos(angle) * this.speed;
       this.y += Math.sin(angle) * this.speed;
@@ -241,16 +407,12 @@ class Omnivore {
       this.y += (Math.random() - 0.5) * this.speed * 2;
     }
     
-    // Ограничение движения в пределах холста
     this.x = Math.max(10, Math.min(1290, this.x));
     this.y = Math.max(10, Math.min(830, this.y));
-    
-    // Расход энергии
     this.energy -= 0.12;
   }
   
-  eat(plants, herbivores) {
-    // Попытка съесть травоядное
+  eat(plants, herbivores, predators) {
     for (let i = 0; i < herbivores.length; i++) {
       const prey = herbivores[i];
       const dx = prey.x - this.x;
@@ -261,8 +423,7 @@ class Omnivore {
         this.energy += 40;
         this.eatenCount++;
         
-        // Проверка на достижение взрослого состояния
-        if (!this.isAdult && this.eatenCount >= 10) {
+        if (!this.isAdult && this.eatenCount >= 7) {
           this.isAdult = true;
           this.size = this.maxSize;
         }
@@ -271,7 +432,29 @@ class Omnivore {
       }
     }
     
-    // Попытка съесть растение
+    if (this.isAdult) {
+      for (let i = 0; i < predators.length; i++) {
+        const predator = predators[i];
+        if (!predator.isAdult) {
+          const dx = predator.x - this.x;
+          const dy = predator.y - this.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          
+          if (dist < this.size + predator.size) {
+            this.energy += 45;
+            this.eatenCount++;
+            
+            if (!this.isAdult && this.eatenCount >= 7) {
+              this.isAdult = true;
+              this.size = this.maxSize;
+            }
+            
+            return { type: 'predator', index: i };
+          }
+        }
+      }
+    }
+    
     for (let i = 0; i < plants.length; i++) {
       const plant = plants[i];
       const dx = plant.x - this.x;
@@ -282,7 +465,6 @@ class Omnivore {
         this.energy += 25;
         this.eatenCount++;
         
-        // Проверка на достижение взрослого состояния
         if (!this.isAdult && this.eatenCount >= 10) {
           this.isAdult = true;
           this.size = this.maxSize;
@@ -296,17 +478,40 @@ class Omnivore {
   }
   
   reproduce(other) {
-    // Размножаемся только если оба взрослые и нет кулдауна
-    if (this.isAdult && other && other.isAdult && this.reproductionCooldown === 0 && other.reproductionCooldown === 0) {
-      this.reproductionCooldown = 55; // Устанавливаем кулдаун
-      other.reproductionCooldown = 55;
-      
-      return new Omnivore(
-        Date.now(), 
-        this.x + (Math.random() - 0.5) * 55,
-        this.y + (Math.random() - 0.5) * 55
+    if (!this.isAdult || !other?.isAdult || 
+        this.reproductionCooldown > 0 || 
+        other.reproductionCooldown > 0) {
+      return null;
+    }
+
+    const cooldowns = {
+      herbivore: 60,
+      predator: 80,
+      omnivore: 70
+    };
+    
+    this.reproductionCooldown = cooldowns[this.type];
+    other.reproductionCooldown = cooldowns[this.type];
+
+    const killParent = (org) => {
+      if (Math.random() < org.reproductionDeathChance) {
+        org.energy = 0;
+        return true;
+      }
+      return false;
+    };
+
+    const parent1Died = killParent(this);
+    const parent2Died = killParent(other);
+
+    if (!parent1Died || !parent2Died) {
+      return new this.constructor(
+        Date.now(),
+        (this.x + other.x) / 2 + (Math.random() - 0.5) * 30,
+        (this.y + other.y) / 2 + (Math.random() - 0.5) * 30
       );
     }
+    
     return null;
   }
 }
@@ -343,16 +548,13 @@ function UnderwaterEvolution() {
     plant: 1
   });
 
-  // Базовый интервал обновления (в мс)
   const baseSpeed = 100;
 
-  // Инициализация симуляции
   useEffect(() => {
     resetSimulation();
   }, []);
 
   const resetSimulation = () => {
-    // Создание начальных организмов
     const initialOrganisms = [];
     for (let i = 0; i < 5; i++) {
       initialOrganisms.push(new Herbivore(i, Math.random() * 1300, Math.random() * 840));
@@ -364,7 +566,6 @@ function UnderwaterEvolution() {
       initialOrganisms.push(new Omnivore(i, Math.random() * 1300, Math.random() * 840));
     }
     
-    // Создание начальных растений
     const initialPlants = [];
     for (let i = 0; i < 20; i++) {
       initialPlants.push(new Plant(i, Math.random() * 1300, Math.random() * 840));
@@ -435,70 +636,73 @@ function UnderwaterEvolution() {
     const gameLoop = setInterval(() => {
       setOrganisms(prevOrganisms => {
         const newOrganisms = prevOrganisms.map(org => {
-    let newOrg;
-    if (org.type === 'herbivore') {
-      newOrg = new Herbivore(org.id, org.x, org.y);
-    } else if (org.type === 'predator') {
-      newOrg = new Predator(org.id, org.x, org.y);
-    } else if (org.type === 'omnivore') {
-      newOrg = new Omnivore(org.id, org.x, org.y);
-    }
-    
-    // Копируем все важные свойства
-    if (newOrg) {
-      newOrg.energy = org.energy;
-      newOrg.eatenCount = org.eatenCount;
-      newOrg.isAdult = org.isAdult;
-      newOrg.reproductionCooldown = org.reproductionCooldown;
-      return newOrg;
-    }
-    return org;
-  });
+          let newOrg;
+          if (org.type === 'herbivore') {
+            newOrg = new Herbivore(org.id, org.x, org.y);
+          } else if (org.type === 'predator') {
+            newOrg = new Predator(org.id, org.x, org.y);
+          } else if (org.type === 'omnivore') {
+            newOrg = new Omnivore(org.id, org.x, org.y);
+          }
+          
+          if (newOrg) {
+            newOrg.energy = org.energy;
+            newOrg.eatenCount = org.eatenCount;
+            newOrg.isAdult = org.isAdult;
+            newOrg.reproductionCooldown = org.reproductionCooldown;
+            return newOrg;
+          }
+          return org;
+        });
         
         const newPlants = [...plants];
         const organismsToAdd = [];
         
-        // Обработка каждого организма
+        const herbivores = newOrganisms.filter(o => o.type === 'herbivore');
+        const predators = newOrganisms.filter(o => o.type === 'predator');
+        const omnivores = newOrganisms.filter(o => o.type === 'omnivore');
+        
         for (const organism of newOrganisms) {
           if (organism.energy <= 0) continue;
           
-          // Движение и питание в зависимости от типа
           if (organism.type === 'herbivore') {
-            organism.move(newPlants);
+            organism.move(newPlants, herbivores);
             const eatenIndex = organism.eat(newPlants);
             if (eatenIndex !== -1) {
               newPlants.splice(eatenIndex, 1);
             }
           } else if (organism.type === 'predator') {
-            const herbivores = newOrganisms.filter(o => o.type === 'herbivore');
-            organism.move(herbivores);
-            const eatenIndex = organism.eat(herbivores);
-            if (eatenIndex !== -1) {
-              const preyId = herbivores[eatenIndex].id;
+            organism.move(herbivores, omnivores, predators);
+            const eaten = organism.eat(herbivores, omnivores);
+            if (eaten) {
+              const preyArray = eaten.type === 'herbivore' ? herbivores : omnivores;
+              const preyId = preyArray[eaten.index].id;
               const preyIndex = newOrganisms.findIndex(o => o.id === preyId);
               if (preyIndex !== -1) {
                 newOrganisms[preyIndex].energy = 0;
               }
             }
           } else if (organism.type === 'omnivore') {
-            const herbivores = newOrganisms.filter(o => o.type === 'herbivore');
-            organism.move(newPlants, herbivores);
-            const eaten = organism.eat(newPlants, herbivores);
+            organism.move(newPlants, herbivores, predators, omnivores);
+            const eaten = organism.eat(newPlants, herbivores, predators);
             if (eaten) {
               if (eaten.type === 'plant') {
                 newPlants.splice(eaten.index, 1);
               } else {
-                const preyId = herbivores[eaten.index].id;
-                const preyIndex = newOrganisms.findIndex(o => o.id === preyId);
-                if (preyIndex !== -1) {
-                  newOrganisms[preyIndex].energy = 0;
+                const preyArray = eaten.type === 'herbivore' ? herbivores : 
+                                eaten.type === 'predator' ? predators : null;
+                if (preyArray) {
+                  const preyId = preyArray[eaten.index].id;
+                  const preyIndex = newOrganisms.findIndex(o => o.id === preyId);
+                  if (preyIndex !== -1) {
+                    newOrganisms[preyIndex].energy = 0;
+                  }
                 }
               }
             }
           }
         }
         
-        // Проверка столкновений для размножения
         for (let i = 0; i < newOrganisms.length; i++) {
           const org1 = newOrganisms[i];
           if (org1.energy <= 0 || !org1.isAdult) continue;
@@ -520,15 +724,12 @@ function UnderwaterEvolution() {
           }
         }
         
-        // Фильтрация мертвых организмов
         const aliveOrganisms = newOrganisms.filter(o => o.energy > 0);
         
-        // Добавление новых растений
         if (Math.random() > 0.7) {
           newPlants.push(new Plant(Date.now(), Math.random() * 1300, Math.random() * 840));
         }
         
-        // Обновление статистики
         setStats(prev => ({
           ...prev,
           herbivores: aliveOrganisms.filter(o => o.type === 'herbivore').length,
@@ -538,17 +739,15 @@ function UnderwaterEvolution() {
           generation: prev.generation + 1
         }));
         
-        // Обновление растений
         setPlants(newPlants);
         
         return [...aliveOrganisms, ...organismsToAdd];
       });
     }, actualSpeed);
-    
+  
     return () => clearInterval(gameLoop);
   }, [isRunning, speedMultiplier, plants]);
-
-  // Визуализация сцены
+   
   const renderScene = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -556,11 +755,9 @@ function UnderwaterEvolution() {
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, 1300, 840);
     
-    // Рисование фона (океан)
     ctx.fillStyle = '#5c9eee';
     ctx.fillRect(0, 0, 1300, 840);
     
-    // Рисование растений
     plants.forEach(plant => {
       ctx.fillStyle = plant.color;
       ctx.beginPath();
@@ -568,15 +765,12 @@ function UnderwaterEvolution() {
       ctx.fill();
     });
     
-    // Рисование организмов
     organisms.forEach(organism => {
-      // Тело организма
       ctx.fillStyle = organism.color;
       ctx.beginPath();
       ctx.arc(organism.x, organism.y, organism.size, 0, Math.PI * 2);
       ctx.fill();
       
-      // Глаза
       ctx.fillStyle = 'white';
       ctx.beginPath();
       ctx.arc(
@@ -595,7 +789,6 @@ function UnderwaterEvolution() {
       );
       ctx.fill();
       
-      // Зрачки
       ctx.fillStyle = 'black';
       ctx.beginPath();
       ctx.arc(
@@ -614,7 +807,6 @@ function UnderwaterEvolution() {
       );
       ctx.fill();
       
-      // Индикатор взрослой особи (кружок вокруг)
       if (organism.isAdult) {
         ctx.strokeStyle = 'gold';
         ctx.lineWidth = 2;
