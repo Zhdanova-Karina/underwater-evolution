@@ -1,5 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
+const FIELD_WIDTH = 1300;
+const FIELD_HEIGHT = 840;
+const MARGIN = 10; // Отступ от края
+
+// Функция проверки границ (добавить после констант)
+function checkBoundaries(organism) {
+  organism.x = Math.max(MARGIN + organism.size, 
+               Math.min(FIELD_WIDTH - MARGIN - organism.size, organism.x));
+  organism.y = Math.max(MARGIN + organism.size, 
+               Math.min(FIELD_HEIGHT - MARGIN - organism.size, organism.y));
+}
 
 // Функция для зигзагообразного побега
 function zigzagEscape(organism) {
@@ -7,8 +18,8 @@ function zigzagEscape(organism) {
     organism.escapeAngle += (Math.random() - 0.5) * Math.PI / 2;
   }
   
-  organism.x += Math.cos(organism.escapeAngle) * organism.speed * 1.5;
-  organism.y += Math.sin(organism.escapeAngle) * organism.speed * 1.5;
+checkBoundaries(organism);
+
   organism.escapeTimer--;
   organism.energy -= 0.25;
   
@@ -197,8 +208,7 @@ class Herbivore {
       this.y += (Math.random() - 0.5) * this.speed * 2;
     }
     
-    this.x = Math.max(10, Math.min(1290, this.x));
-    this.y = Math.max(10, Math.min(830, this.y));
+    checkBoundaries(this);
     this.energy -= 0.1;
   }
 
@@ -361,8 +371,7 @@ class Predator {
     }
     
     // Не выходим за границы
-    this.x = Math.max(10, Math.min(1290, this.x));
-    this.y = Math.max(10, Math.min(830, this.y));
+    checkBoundaries(this);
     this.energy -= 0.15;
   }
 
@@ -603,8 +612,7 @@ class Omnivore {
       this.y += (Math.random() - 0.5) * this.speed * 2;
     }
     
-    this.x = Math.max(10, Math.min(1290, this.x));
-    this.y = Math.max(10, Math.min(830, this.y));
+    checkBoundaries(this);
     this.energy -= 0.12;
   }
   
@@ -717,7 +725,7 @@ class Plant {
     this.id = id;
     this.x = x;
     this.y = y;
-    this.size = 8 + Math.random() * 4;
+    this.size = 6 + Math.random() * 6;
     this.type = 'plant';
     this.color = `hsl(90, 80%, 30%)`;
   }
@@ -753,13 +761,16 @@ function UnderwaterEvolution() {
   const resetSimulation = () => {
     const initialOrganisms = [];
     for (let i = 0; i < 5; i++) {
-      initialOrganisms.push(new Herbivore(i, Math.random() * 1300, Math.random() * 840));
+      initialOrganisms.push(new Herbivore(i, Math.random() * (FIELD_WIDTH - 2*MARGIN) + MARGIN, 
+  Math.random() * (FIELD_HEIGHT - 2*MARGIN) + MARGIN));
     }
     for (let i = 5; i < 10; i++) {
-      initialOrganisms.push(new Predator(i, Math.random() * 1300, Math.random() * 840));
+      initialOrganisms.push(new Predator(i, Math.random() * (FIELD_WIDTH - 2*MARGIN) + MARGIN, 
+  Math.random() * (FIELD_HEIGHT - 2*MARGIN) + MARGIN));
     }
     for (let i = 10; i < 15; i++) {
-      initialOrganisms.push(new Omnivore(i, Math.random() * 1300, Math.random() * 840));
+      initialOrganisms.push(new Omnivore(i, Math.random() * (FIELD_WIDTH - 2*MARGIN) + MARGIN, 
+  Math.random() * (FIELD_HEIGHT - 2*MARGIN) + MARGIN));
     }
     
     const initialPlants = [];
@@ -779,43 +790,58 @@ function UnderwaterEvolution() {
     setIsRunning(false);
   };
 
-  const addOrganism = (type) => {
-    const count = addCounts[type];
-    const newOrganisms = [];
-    
-    for (let i = 0; i < count; i++) {
-      const newOrganism = (() => {
-        switch(type) {
-          case 'herbivore':
-            return new Herbivore(Date.now() + i, Math.random() * 1300, Math.random() * 840);
-          case 'predator':
-            return new Predator(Date.now() + i, Math.random() * 1300, Math.random() * 840);
-          case 'omnivore':
-            return new Omnivore(Date.now() + i, Math.random() * 1300, Math.random() * 840);
-          default:
-            return null;
-        }
-      })();
-      
-      if (newOrganism) {
-        newOrganisms.push(newOrganism);
+const addOrganism = (type) => {
+  const count = addCounts[type];
+  const newOrganisms = []; // Перенесено перед циклом
+  
+  for (let i = 0; i < count; i++) {
+    const newOrganism = (() => {
+      switch(type) {
+        case 'herbivore':
+          return new Herbivore(
+            Date.now() + i, 
+            Math.random() * (FIELD_WIDTH - 2*MARGIN) + MARGIN,
+            Math.random() * (FIELD_HEIGHT - 2*MARGIN) + MARGIN
+          );
+        case 'predator':
+          return new Predator(
+            Date.now() + i,
+            Math.random() * (FIELD_WIDTH - 2*MARGIN) + MARGIN,
+            Math.random() * (FIELD_HEIGHT - 2*MARGIN) + MARGIN
+          );
+        case 'omnivore':
+          return new Omnivore(
+            Date.now() + i,
+            Math.random() * (FIELD_WIDTH - 2*MARGIN) + MARGIN,
+            Math.random() * (FIELD_HEIGHT - 2*MARGIN) + MARGIN
+          );
+        default:
+          return null;
       }
-    }
+    })();
     
-    setOrganisms(prev => [...prev, ...newOrganisms]);
-    setStats(prev => ({
-      ...prev,
-      [type + 's']: prev[type + 's'] + count
-    }));
-  };
+    if (newOrganism) {
+      newOrganisms.push(newOrganism);
+    }
+  }
+  
+  setOrganisms(prev => [...prev, ...newOrganisms]);
+  setStats(prev => ({
+    ...prev,
+    [type + 's']: prev[type + 's'] + count
+  }));
+};
 
   const addPlant = () => {
     const count = addCounts.plant;
     const newPlants = [];
     
     for (let i = 0; i < count; i++) {
-      newPlants.push(new Plant(Date.now() + i, Math.random() * 1300, Math.random() * 840));
-    }
+newPlants.push(new Plant(
+  Date.now() + i,
+  Math.random() * (FIELD_WIDTH - 2*MARGIN) + MARGIN,
+  Math.random() * (FIELD_HEIGHT - 2*MARGIN) + MARGIN
+));    }
     
     setPlants(prev => [...prev, ...newPlants]);
     setStats(prev => ({
@@ -922,8 +948,8 @@ function UnderwaterEvolution() {
         
         setPlants(prevPlants => {
           const updatedPlants = [...prevPlants];
-          if (Math.random() > 0.7) {
-            updatedPlants.push(new Plant(Date.now(), Math.random() * 1300, Math.random() * 840));
+          if (Math.random() > 0.95) {
+            updatedPlants.push(new Plant(Date.now(), Math.random() * 1290, Math.random() * 830));
           }
           return updatedPlants;
         });
