@@ -100,7 +100,8 @@ button:active {
 
 .speed-control {
   position: relative;
-  padding-bottom: 20px;
+  padding-bottom: 10px;
+  font-size: 15px;
 }
 
 .speed-labels {
