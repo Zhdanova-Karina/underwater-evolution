@@ -1091,20 +1091,13 @@ newPlants.push(new Plant(
           <div className="speed-control">
             <h2>Скорость: {speedMultiplier}x</h2>
             <input 
-              type="range" 
-              min="0.5" 
-              max="4" 
-              step="0.1"
-              value={speedMultiplier} 
-              onChange={(e) => setSpeedMultiplier(parseFloat(e.target.value))} 
-            />
-            <div className="speed-labels">
-              <span style={{ left: '0%' }}>0.5x</span>
-              <span style={{ left: '14.28%' }}>1x</span>
-              <span style={{ left: '42.85%' }}>2x</span>
-              <span style={{ left: '71.42%' }}>3x</span>
-              <span style={{ left: '100%', transform: 'translateX(-100%)' }}>4x</span>
-            </div>
+  type="range" 
+  min="0.25"  // Минимальная скорость теперь 0.25x
+  max="4" 
+  step="0.25" // Шаг изменения скорости (0.25, 0.5, 0.75, 1, 1.25 и т.д.)
+  value={speedMultiplier} 
+  onChange={(e) => setSpeedMultiplier(parseFloat(e.target.value))} 
+/>
           </div>
           
           <div className="add-organisms">
