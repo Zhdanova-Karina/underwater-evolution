@@ -652,6 +652,49 @@ class Plant {
     this.color = `hsl(90, 80%, 30%)`;
   }
 }
+class Pollution {
+  constructor(id, x, y) {
+    this.id = id;
+    this.x = x;
+    this.y = y;
+    this.size = 20;
+    this.maxSize = 200;
+    this.currentSize = 0; // Начинаем с 0 и увеличиваем
+    this.growthRate = 1;
+    this.lifetime = 500; // Время жизни в кадрах
+    this.age = 0;
+    this.fadeStart = 300; // Когда начинать исчезать
+    this.color = 'rgba(0, 0, 0, 0.7)';
+    this.isActive = true;
+  }
+
+  update() {
+    if (!this.isActive) return;
+
+    this.age++;
+    
+    // Фаза роста
+    if (this.currentSize < this.maxSize && this.age < this.fadeStart) {
+      this.currentSize = Math.min(this.maxSize, this.currentSize + this.growthRate);
+    }
+    // Фаза исчезновения
+    else if (this.age >= this.fadeStart) {
+      const fadeProgress = (this.age - this.fadeStart) / (this.lifetime - this.fadeStart);
+      this.currentSize = this.maxSize * (1 - fadeProgress);
+      
+      if (this.age >= this.lifetime) {
+        this.isActive = false;
+      }
+    }
+  }
+
+  isPointInside(x, y) {
+    if (!this.isActive) return false;
+    const dx = x - this.x;
+    const dy = y - this.y;
+    return Math.sqrt(dx * dx + dy * dy) < this.currentSize;
+  }
+}
 
 function UnderwaterEvolution() {
   const canvasRef = useRef(null);
@@ -676,39 +719,49 @@ function UnderwaterEvolution() {
 
   const baseSpeed = 100;
 
+  const [pollutions, setPollutions] = useState([]);
+const addPollution = () => {
+  const newPollution = new Pollution(
+    Date.now(),
+    Math.random() * 1200 + 50,
+    Math.random() * 700 + 50
+  );
+  setPollutions(prev => [...prev, newPollution]);
+};
+
   useEffect(() => {
     resetSimulation();
   }, []);
 
-  const resetSimulation = () => {
-    const initialOrganisms = [];
-    for (let i = 0; i < 5; i++) {
-      initialOrganisms.push(new Herbivore(i, Math.random() * 1300, Math.random() * 840));
-    }
-    for (let i = 5; i < 10; i++) {
-      initialOrganisms.push(new Predator(i, Math.random() * 1300, Math.random() * 840));
-    }
-    for (let i = 10; i < 15; i++) {
-      initialOrganisms.push(new Omnivore(i, Math.random() * 1300, Math.random() * 840));
-    }
-    
-    const initialPlants = [];
-    for (let i = 0; i < 20; i++) {
-      initialPlants.push(new Plant(i, Math.random() * 1300, Math.random() * 840));
-    }
-    
-    setOrganisms(initialOrganisms);
-    setPlants(initialPlants);
-    setStats({
-      herbivores: 5,
-      predators: 5,
-      omnivores: 5,
-      plants: 20,
-      generation: 0
-    });
-    setIsRunning(false);
-  };
-
+ const resetSimulation = () => {
+  const initialOrganisms = [];
+  for (let i = 0; i < 5; i++) {
+    initialOrganisms.push(new Herbivore(i, Math.random() * 1300, Math.random() * 840));
+  }
+  for (let i = 5; i < 10; i++) {
+    initialOrganisms.push(new Predator(i, Math.random() * 1300, Math.random() * 840));
+  }
+  for (let i = 10; i < 15; i++) {
+    initialOrganisms.push(new Omnivore(i, Math.random() * 1300, Math.random() * 840));
+  }
+  
+  const initialPlants = [];
+  for (let i = 0; i < 20; i++) {
+    initialPlants.push(new Plant(i, Math.random() * 1300, Math.random() * 840));
+  }
+  
+  setOrganisms(initialOrganisms);
+  setPlants(initialPlants);
+  setPollutions([]); // Добавьте эту строку для очистки загрязнений
+  setStats({
+    herbivores: 5,
+    predators: 5,
+    omnivores: 5,
+    plants: 20,
+    generation: 0
+  });
+  setIsRunning(false);
+};
   const addOrganism = (type) => {
     const count = addCounts[type];
     const newOrganisms = [];
@@ -755,196 +808,239 @@ function UnderwaterEvolution() {
   };
 
   useEffect(() => {
-    if (!isRunning) return;
-    
-    const actualSpeed = baseSpeed / speedMultiplier;
-    
-    const gameLoop = setInterval(() => {
-      setOrganisms(prevOrganisms => {
-        const newOrganisms = prevOrganisms.map(org => {
-          let newOrg;
-          if (org.type === 'herbivore') {
-            newOrg = new Herbivore(org.id, org.x, org.y);
-          } else if (org.type === 'predator') {
-            newOrg = new Predator(org.id, org.x, org.y);
-          } else if (org.type === 'omnivore') {
-            newOrg = new Omnivore(org.id, org.x, org.y);
+  if (!isRunning) return;
+  
+  const actualSpeed = baseSpeed / speedMultiplier;
+  
+  const gameLoop = setInterval(() => {
+    setOrganisms(prevOrganisms => {
+      const newOrganisms = prevOrganisms.map(org => {
+        let newOrg;
+        if (org.type === 'herbivore') {
+          newOrg = new Herbivore(org.id, org.x, org.y);
+        } else if (org.type === 'predator') {
+          newOrg = new Predator(org.id, org.x, org.y);
+        } else if (org.type === 'omnivore') {
+          newOrg = new Omnivore(org.id, org.x, org.y);
+        }
+        
+        if (newOrg) {
+          newOrg.energy = org.energy;
+          newOrg.eatenCount = org.eatenCount;
+          newOrg.isAdult = org.isAdult;
+          newOrg.reproductionCooldown = org.reproductionCooldown;
+          newOrg.escapeMode = org.escapeMode;
+          newOrg.escapeTimer = org.escapeTimer;
+          newOrg.escapeAngle = org.escapeAngle;
+          return newOrg;
+        }
+        return org;
+      });
+      
+      const newPlants = [...plants];
+      const organismsToAdd = [];
+      
+      const herbivores = newOrganisms.filter(o => o.type === 'herbivore');
+      const predators = newOrganisms.filter(o => o.type === 'predator');
+      const omnivores = newOrganisms.filter(o => o.type === 'omnivore');
+      
+      for (const organism of newOrganisms) {
+        if (organism.energy <= 0) continue;
+        
+        if (organism.type === 'herbivore') {
+          organism.move(newPlants, herbivores, predators, omnivores);
+          const eatenIndex = organism.eat(newPlants);
+          if (eatenIndex !== -1) {
+            newPlants.splice(eatenIndex, 1);
           }
-          
-          if (newOrg) {
-            newOrg.energy = org.energy;
-            newOrg.eatenCount = org.eatenCount;
-            newOrg.isAdult = org.isAdult;
-            newOrg.reproductionCooldown = org.reproductionCooldown;
-            newOrg.escapeMode = org.escapeMode;
-            newOrg.escapeTimer = org.escapeTimer;
-            newOrg.escapeAngle = org.escapeAngle;
-            return newOrg;
+        } else if (organism.type === 'predator') {
+          organism.move(herbivores, omnivores, predators);
+          const eaten = organism.eat(herbivores, omnivores);
+          if (eaten) {
+            const preyArray = eaten.type === 'herbivore' ? herbivores : omnivores;
+            const preyId = preyArray[eaten.index].id;
+            const preyIndex = newOrganisms.findIndex(o => o.id === preyId);
+            if (preyIndex !== -1) {
+              newOrganisms[preyIndex].energy = 0;
+            }
           }
-          return org;
-        });
-        
-        const newPlants = [...plants];
-        const organismsToAdd = [];
-        
-        const herbivores = newOrganisms.filter(o => o.type === 'herbivore');
-        const predators = newOrganisms.filter(o => o.type === 'predator');
-        const omnivores = newOrganisms.filter(o => o.type === 'omnivore');
-        
-        for (const organism of newOrganisms) {
-          if (organism.energy <= 0) continue;
-          
-          if (organism.type === 'herbivore') {
-            organism.move(newPlants, herbivores, predators, omnivores);
-            const eatenIndex = organism.eat(newPlants);
-            if (eatenIndex !== -1) {
-              newPlants.splice(eatenIndex, 1);
-            }
-          } else if (organism.type === 'predator') {
-            organism.move(herbivores, omnivores, predators);
-            const eaten = organism.eat(herbivores, omnivores);
-            if (eaten) {
-              const preyArray = eaten.type === 'herbivore' ? herbivores : omnivores;
-              const preyId = preyArray[eaten.index].id;
-              const preyIndex = newOrganisms.findIndex(o => o.id === preyId);
-              if (preyIndex !== -1) {
-                newOrganisms[preyIndex].energy = 0;
-              }
-            }
-          } else if (organism.type === 'omnivore') {
-            organism.move(newPlants, herbivores, predators, omnivores);
-            const eaten = organism.eat(newPlants, herbivores, predators);
-            if (eaten) {
-              if (eaten.type === 'plant') {
-                newPlants.splice(eaten.index, 1);
-              } else {
-                const preyArray = eaten.type === 'herbivore' ? herbivores : 
-                                eaten.type === 'predator' ? predators : null;
-                if (preyArray) {
-                  const preyId = preyArray[eaten.index].id;
-                  const preyIndex = newOrganisms.findIndex(o => o.id === preyId);
-                  if (preyIndex !== -1) {
-                    newOrganisms[preyIndex].energy = 0;
-                  }
+        } else if (organism.type === 'omnivore') {
+          organism.move(newPlants, herbivores, predators, omnivores);
+          const eaten = organism.eat(newPlants, herbivores, predators);
+          if (eaten) {
+            if (eaten.type === 'plant') {
+              newPlants.splice(eaten.index, 1);
+            } else {
+              const preyArray = eaten.type === 'herbivore' ? herbivores : 
+                              eaten.type === 'predator' ? predators : null;
+              if (preyArray) {
+                const preyId = preyArray[eaten.index].id;
+                const preyIndex = newOrganisms.findIndex(o => o.id === preyId);
+                if (preyIndex !== -1) {
+                  newOrganisms[preyIndex].energy = 0;
                 }
               }
             }
           }
         }
+      }
+      
+      for (let i = 0; i < newOrganisms.length; i++) {
+        const org1 = newOrganisms[i];
+        if (org1.energy <= 0 || !org1.isAdult) continue;
         
-        for (let i = 0; i < newOrganisms.length; i++) {
-          const org1 = newOrganisms[i];
-          if (org1.energy <= 0 || !org1.isAdult) continue;
+        for (let j = i + 1; j < newOrganisms.length; j++) {
+          const org2 = newOrganisms[j];
+          if (org2.energy <= 0 || !org2.isAdult || org1.type !== org2.type) continue;
           
-          for (let j = i + 1; j < newOrganisms.length; j++) {
-            const org2 = newOrganisms[j];
-            if (org2.energy <= 0 || !org2.isAdult || org1.type !== org2.type) continue;
-            
-            const dx = org1.x - org2.x;
-            const dy = org1.y - org2.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            
-            if (dist < org1.size + org2.size) {
-              const offspring = org1.reproduce(org2);
-              if (offspring) {
-                organismsToAdd.push(offspring);
-              }
+          const dx = org1.x - org2.x;
+          const dy = org1.y - org2.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          
+          if (dist < org1.size + org2.size) {
+            const offspring = org1.reproduce(org2);
+            if (offspring) {
+              organismsToAdd.push(offspring);
             }
           }
         }
-        
-        const aliveOrganisms = newOrganisms.filter(o => o.energy > 0);
-        
-        if (Math.random() > 0.7) {
-          newPlants.push(new Plant(Date.now(), Math.random() * 1300, Math.random() * 840));
-        }
-        
-        setStats(prev => ({
-          ...prev,
-          herbivores: aliveOrganisms.filter(o => o.type === 'herbivore').length,
-          predators: aliveOrganisms.filter(o => o.type === 'predator').length,
-          omnivores: aliveOrganisms.filter(o => o.type === 'omnivore').length,
-          plants: newPlants.length,
-          generation: prev.generation + 1
-        }));
-        
-        setPlants(newPlants);
-        
-        return [...aliveOrganisms, ...organismsToAdd];
-      });
-    }, actualSpeed);
-  
-    return () => clearInterval(gameLoop);
-  }, [isRunning, speedMultiplier, plants]);
-   
-  const renderScene = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, 1300, 840);
-    
-    ctx.fillStyle = '#5c9eee';
-    ctx.fillRect(0, 0, 1300, 840);
-    
-    plants.forEach(plant => {
-      ctx.fillStyle = plant.color;
-      ctx.beginPath();
-      ctx.arc(plant.x, plant.y, plant.size, 0, Math.PI * 2);
-      ctx.fill();
-    });
-    
-    organisms.forEach(organism => {
-      ctx.fillStyle = organism.color;
-      ctx.beginPath();
-      ctx.arc(organism.x, organism.y, organism.size, 0, Math.PI * 2);
-      ctx.fill();
-      
-      ctx.fillStyle = 'white';
-      ctx.beginPath();
-      ctx.arc(
-        organism.x - organism.size * 0.3, 
-        organism.y - organism.size * 0.2, 
-        organism.size * 0.3, 
-        0, 
-        Math.PI * 2
-      );
-      ctx.arc(
-        organism.x + organism.size * 0.3, 
-        organism.y - organism.size * 0.2, 
-        organism.size * 0.3, 
-        0, 
-        Math.PI * 2
-      );
-      ctx.fill();
-      
-      ctx.fillStyle = 'black';
-      ctx.beginPath();
-      ctx.arc(
-        organism.x - organism.size * 0.3, 
-        organism.y - organism.size * 0.2, 
-        organism.size * 0.15, 
-        0, 
-        Math.PI * 2
-      );
-      ctx.arc(
-        organism.x + organism.size * 0.3, 
-        organism.y - organism.size * 0.2, 
-        organism.size * 0.15, 
-        0, 
-        Math.PI * 2
-      );
-      ctx.fill();
-      
-      if (organism.isAdult) {
-        ctx.strokeStyle = 'gold';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(organism.x, organism.y, organism.size + 3, 0, Math.PI * 2);
-        ctx.stroke();
       }
+      
+      // Обновляем загрязнения
+      const updatedPollutions = pollutions
+        .map(p => {
+          const newP = new Pollution(p.id, p.x, p.y);
+          Object.assign(newP, p);
+          newP.update();
+          return newP;
+        })
+        .filter(p => p.isActive);
+      
+      // Проверяем влияние загрязнений на растения
+      const updatedPlants = newPlants.filter(plant => {
+        return !updatedPollutions.some(pollution => 
+          pollution.isPointInside(plant.x, plant.y)
+        );
+      });
+      
+      // Проверяем влияние загрязнений на организмы
+      const updatedOrganisms = [...newOrganisms, ...organismsToAdd]
+        .filter(organism => {
+          if (organism.energy <= 0) return false;
+          
+          return !updatedPollutions.some(pollution => pollution.isPointInside(organism.x, organism.y));
+        });
+      
+      setPlants(updatedPlants);
+      setPollutions(updatedPollutions);
+      
+      setStats(prev => ({
+        ...prev,
+        herbivores: updatedOrganisms.filter(o => o.type === 'herbivore').length,
+        predators: updatedOrganisms.filter(o => o.type === 'predator').length,
+        omnivores: updatedOrganisms.filter(o => o.type === 'omnivore').length,
+        plants: updatedPlants.length,
+        generation: prev.generation + 1
+      }));
+      
+      return updatedOrganisms;
     });
-  };
+  }, actualSpeed);
+
+  return () => clearInterval(gameLoop);
+}, [isRunning, speedMultiplier, plants, pollutions]);
+
+const renderScene = () => {
+  const canvas = canvasRef.current;
+  if (!canvas) return;
+  
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, 1300, 840);
+  
+  ctx.fillStyle = '#5c9eee';
+  ctx.fillRect(0, 0, 1300, 840);
+  
+  // Рисуем загрязнения
+  pollutions.forEach(pollution => {
+    if (!pollution.isActive) return;
+    
+    const gradient = ctx.createRadialGradient(
+      pollution.x, pollution.y, 0,
+      pollution.x, pollution.y, pollution.currentSize
+    );
+    gradient.addColorStop(0, 'rgba(0, 0, 0, 0.8)');
+    gradient.addColorStop(1, 'rgba(0, 0, 0, 0.1)');
+    
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(
+      pollution.x, 
+      pollution.y, 
+      pollution.currentSize, 
+      0, 
+      Math.PI * 2
+    );
+    ctx.fill();
+  });
+  
+  plants.forEach(plant => {
+    ctx.fillStyle = plant.color;
+    ctx.beginPath();
+    ctx.arc(plant.x, plant.y, plant.size, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  
+  organisms.forEach(organism => {
+    ctx.fillStyle = organism.color;
+    ctx.beginPath();
+    ctx.arc(organism.x, organism.y, organism.size, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.fillStyle = 'white';
+    ctx.beginPath();
+    ctx.arc(
+      organism.x - organism.size * 0.3, 
+      organism.y - organism.size * 0.2, 
+      organism.size * 0.3, 
+      0, 
+      Math.PI * 2
+    );
+    ctx.arc(
+      organism.x + organism.size * 0.3, 
+      organism.y - organism.size * 0.2, 
+      organism.size * 0.3, 
+      0, 
+      Math.PI * 2
+    );
+    ctx.fill();
+    
+    ctx.fillStyle = 'black';
+    ctx.beginPath();
+    ctx.arc(
+      organism.x - organism.size * 0.3, 
+      organism.y - organism.size * 0.2, 
+      organism.size * 0.15, 
+      0, 
+      Math.PI * 2
+    );
+    ctx.arc(
+      organism.x + organism.size * 0.3, 
+      organism.y - organism.size * 0.2, 
+      organism.size * 0.15, 
+      0, 
+      Math.PI * 2
+    );
+    ctx.fill();
+    
+    if (organism.isAdult) {
+      ctx.strokeStyle = 'gold';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(organism.x, organism.y, organism.size + 3, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  });
+};
 
   useEffect(() => {
     renderScene();
@@ -1049,6 +1145,12 @@ function UnderwaterEvolution() {
               />
               <button onClick={addPlant}>Растение</button>
             </div>
+            <div className="add-control">
+  <button 
+    onClick={addPollution}  >
+    Загрязнение
+  </button>
+</div>
           </div>
           
           <div className="simulation-controls">
