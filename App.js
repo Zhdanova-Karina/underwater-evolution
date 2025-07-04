@@ -1,15 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
-const FIELD_WIDTH = 1300;
-const FIELD_HEIGHT = 840;
-const MARGIN = 10; // Отступ от края
 
-// Функция проверки границ (добавить после констант)
+// Функция для проверки границ
 function checkBoundaries(organism) {
-  organism.x = Math.max(MARGIN + organism.size, 
-               Math.min(FIELD_WIDTH - MARGIN - organism.size, organism.x));
-  organism.y = Math.max(MARGIN + organism.size, 
-               Math.min(FIELD_HEIGHT - MARGIN - organism.size, organism.y));
+  organism.x = Math.max(10, Math.min(1290, organism.x));
+  organism.y = Math.max(10, Math.min(830, organism.y));
 }
 
 // Функция для зигзагообразного побега
@@ -18,8 +13,10 @@ function zigzagEscape(organism) {
     organism.escapeAngle += (Math.random() - 0.5) * Math.PI / 2;
   }
   
-checkBoundaries(organism);
-
+  organism.x += Math.cos(organism.escapeAngle) * organism.speed * 1.5;
+  organism.y += Math.sin(organism.escapeAngle) * organism.speed * 1.5;
+  
+  checkBoundaries(organism);
   organism.escapeTimer--;
   organism.energy -= 0.25;
   
@@ -28,33 +25,14 @@ checkBoundaries(organism);
   }
 }
 
-// Функция поиска укрытия (растения)
-function findShelter(organism, plants) {
-  let closestShelter = null;
-  let minDist = Infinity;
-  
-  plants.forEach(plant => {
-    const dx = plant.x - organism.x;
-    const dy = plant.y - organism.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    
-    // Ищем растения достаточно большие и близкие
-    if (dist < minDist && dist < 200 && plant.size >= organism.size) {
-      minDist = dist;
-      closestShelter = plant;
-    }
-  });
-  
-  return closestShelter;
-}
-
+// Классы организмов
 class Herbivore {
   constructor(id, x, y) {
     this.id = id;
     this.x = x;
     this.y = y;
     this.size = 10;
-    this.maxSize = 10;
+    this.maxSize = 20;
     this.speed = 1 + Math.random() * 2;
     this.energy = 100;
     this.type = 'herbivore';
@@ -65,15 +43,11 @@ class Herbivore {
     this.lifespan = 300 + Math.floor(Math.random() * 100);
     this.age = 0;
     this.reproductionDeathChance = 0.1;
-    this.escapeAngle = 0;
     this.escapeMode = false;
     this.escapeTimer = 0;
-    this.shelterFound = false;
-    this.currentShelter = null; // Текущее укрытие
-     this.hidden = false; // Спрятан ли организм
-    this.hideStartTime = 0; // Время начала укрытия
-    this.hideDuration = 10000; // 10 секунд в миллисекундах
+    this.escapeAngle = 0;
   }
+
   findMate(herbivores) {
     if (!this.isAdult || this.reproductionCooldown > 0) return null;
     
@@ -96,7 +70,7 @@ class Herbivore {
     return closestMate;
   }
 
-  detectPredators(predators, omnivores) {
+  checkDanger(predators, omnivores) {
     for (const predator of predators) {
       const dx = predator.x - this.x;
       const dy = predator.y - this.y;
@@ -111,75 +85,36 @@ class Herbivore {
     }
     
     for (const omnivore of omnivores) {
-      const dx = omnivore.x - this.x;
-      const dy = omnivore.y - this.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      
-      if (dist < 120 && !this.escapeMode) {
-        this.escapeMode = true;
-        this.escapeTimer = 20 + Math.floor(Math.random() * 15);
-        this.escapeAngle = Math.atan2(this.y - omnivore.y, this.x - omnivore.x);
-        return true;
+      if (omnivore.isAdult) {
+        const dx = omnivore.x - this.x;
+        const dy = omnivore.y - this.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        
+        if (dist < 150 && !this.escapeMode) {
+          this.escapeMode = true;
+          this.escapeTimer = 30 + Math.floor(Math.random() * 20);
+          this.escapeAngle = Math.atan2(this.y - omnivore.y, this.x - omnivore.x);
+          return true;
+        }
       }
     }
     
     return false;
   }
 
-   move(plants, herbivores, predators, omnivores) {
+  move(plants, herbivores, predators, omnivores) {
+    if (this.escapeMode) {
+      zigzagEscape(this);
+      return;
+    }
+    
     if (this.reproductionCooldown > 0) this.reproductionCooldown--;
     
-    // Проверяем, не истекло ли время укрытия
-    if (this.hidden && Date.now() - this.hideStartTime > this.hideDuration) {
-      this.hidden = false;
-      this.currentShelter = null;
+    // Проверка опасности
+    if (this.checkDanger(predators, omnivores)) {
+      return;
     }
     
-     this.detectPredators(predators, omnivores);
-    
-    if (this.escapeMode) {
-      if (!this.currentShelter) {
-        this.currentShelter = findShelter(this, plants);
-      }
-      
-      if (this.currentShelter) {
-        // Проверяем, не занято ли укрытие другим травоядным
-        const shelterOccupied = herbivores.some(h => 
-          h !== this && h.currentShelter && h.currentShelter.id === this.currentShelter.id
-        );
-        
-        if (!shelterOccupied) {
-          // Двигаемся к укрытию
-          const angle = Math.atan2(
-            this.currentShelter.y - this.y, 
-            this.currentShelter.x - this.x
-          );
-          this.x += Math.cos(angle) * this.speed * 1.2;
-          this.y += Math.sin(angle) * this.speed * 1.2;
-          
-          // Проверяем, достигли ли укрытия
-          const dx = this.currentShelter.x - this.x;
-          const dy = this.currentShelter.y - this.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          
-          if (dist < this.currentShelter.size + this.size) {
-            this.hidden = true;
-            this.hideStartTime = Date.now();
-            this.escapeMode = false;
-          }
-        } else {
-          // Укрытие занято - ищем другое или убегаем
-          this.currentShelter = null;
-          zigzagEscape(this);
-        }
-        return;
-      } else {
-        zigzagEscape(this);
-        return;
-      }
-    }
-    
-    // Остальная логика движения, если не в режиме побега
     const mate = this.isAdult ? this.findMate(herbivores) : null;
     let closestPlant = null;
     let minDist = Infinity;
@@ -211,8 +146,8 @@ class Herbivore {
     checkBoundaries(this);
     this.energy -= 0.1;
   }
-
- eat(plants) {  // This method was incorrectly placed outside the class
+  
+  eat(plants) {
     for (let i = 0; i < plants.length; i++) {
       const plant = plants[i];
       const dx = plant.x - this.x;
@@ -273,14 +208,13 @@ class Herbivore {
   }
 }
 
-
 class Predator {
   constructor(id, x, y) {
     this.id = id;
     this.x = x;
     this.y = y;
     this.size = 10;
-    this.maxSize = 10;
+    this.maxSize = 20;
     this.speed = 1.5 + Math.random() * 2;
     this.energy = 100;
     this.type = 'predator';
@@ -291,6 +225,9 @@ class Predator {
     this.lifespan = 200 + Math.floor(Math.random() * 50);
     this.age = 0;
     this.reproductionDeathChance = 0.2;
+    this.escapeMode = false;
+    this.escapeTimer = 0;
+    this.escapeAngle = 0;
   }
 
   findMate(predators) {
@@ -315,17 +252,42 @@ class Predator {
     return closestMate;
   }
 
+  checkDanger(omnivores) {
+    for (const omnivore of omnivores) {
+      if (omnivore.isAdult) {
+        const dx = omnivore.x - this.x;
+        const dy = omnivore.y - this.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        
+        if (dist < 150 && !this.escapeMode && !this.isAdult) {
+          this.escapeMode = true;
+          this.escapeTimer = 30 + Math.floor(Math.random() * 20);
+          this.escapeAngle = Math.atan2(this.y - omnivore.y, this.x - omnivore.x);
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   move(herbivores, omnivores, predators) {
+    if (this.escapeMode) {
+      zigzagEscape(this);
+      return;
+    }
+    
     if (this.reproductionCooldown > 0) this.reproductionCooldown--;
+    
+    // Проверка опасности (только для молодых хищников)
+    if (!this.isAdult && this.checkDanger(omnivores)) {
+      return;
+    }
     
     const mate = this.isAdult ? this.findMate(predators) : null;
     let closestPrey = null;
     let minDist = Infinity;
     
-    // Ищем ближайшую видимую добычу (не спрятанную)
     herbivores.forEach(prey => {
-      if (prey.hidden) return; // Пропускаем спрятанную добычу
-      
       const dx = prey.x - this.x;
       const dy = prey.y - this.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
@@ -337,8 +299,6 @@ class Predator {
     });
     
     omnivores.forEach(prey => {
-      if (prey.hidden) return; // Пропускаем спрятанную добычу
-      
       const dx = prey.x - this.x;
       const dy = prey.y - this.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
@@ -349,81 +309,64 @@ class Predator {
       }
     });
     
-    // Если добыча спряталась, ищем другую цель
-    if (closestPrey && closestPrey.hidden) {
-      closestPrey = null;
-    }
-    
     if (mate) {
-      // Двигаемся к партнеру для размножения
       const angle = Math.atan2(mate.y - this.y, mate.x - this.x);
       this.x += Math.cos(angle) * this.speed;
       this.y += Math.sin(angle) * this.speed;
     } else if (closestPrey) {
-      // Атакуем добычу
       const angle = Math.atan2(closestPrey.y - this.y, closestPrey.x - this.x);
       this.x += Math.cos(angle) * this.speed;
       this.y += Math.sin(angle) * this.speed;
     } else {
-      // Случайное движение, если нет целей
       this.x += (Math.random() - 0.5) * this.speed * 2;
       this.y += (Math.random() - 0.5) * this.speed * 2;
     }
     
-    // Не выходим за границы
     checkBoundaries(this);
     this.energy -= 0.15;
   }
-
-eat(herbivores, omnivores) {
-  // Охота на травоядных (можно съесть любых)
-  for (let i = 0; i < herbivores.length; i++) {
-    const prey = herbivores[i];
-    if (prey.hidden) continue;
-    
-    const dx = prey.x - this.x;
-    const dy = prey.y - this.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    
-    // Может съесть любого травоядного без ограничений
-    if (dist < this.size + prey.size) {
-      this.energy += 50;
-      this.eatenCount++;
-      
-      if (!this.isAdult && this.eatenCount >= 5) {
-        this.isAdult = true;
-      }
-      
-      return { type: 'herbivore', index: i };
-    }
-  }
   
-  // Охота на всеядных
-  for (let i = 0; i < omnivores.length; i++) {
-    const prey = omnivores[i];
-    if (prey.hidden) continue;
-    
-    const dx = prey.x - this.x;
-    const dy = prey.y - this.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    
-    // Может съесть только если:
-    // 1. Это не взрослое всеядное ИЛИ
-    // 2. Это взрослое всеядное, но хищник тоже взрослый
-    if (dist < this.size + prey.size && (!prey.isAdult || this.isAdult)) {
-      this.energy += 50;
-      this.eatenCount++;
+  eat(herbivores, omnivores) {
+    for (let i = 0; i < herbivores.length; i++) {
+      const prey = herbivores[i];
+      const dx = prey.x - this.x;
+      const dy = prey.y - this.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
       
-      if (!this.isAdult && this.eatenCount >= 5) {
-        this.isAdult = true;
+      if (dist < this.size + prey.size) {
+        this.energy += 50;
+        this.eatenCount++;
+        
+        if (!this.isAdult && this.eatenCount >= 5) {
+          this.isAdult = true;
+          this.size = this.maxSize;
+        }
+        
+        return { type: 'herbivore', index: i };
       }
-      
-      return { type: 'omnivore', index: i };
     }
+    
+    for (let i = 0; i < omnivores.length; i++) {
+      const prey = omnivores[i];
+      const dx = prey.x - this.x;
+      const dy = prey.y - this.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      
+      if (dist < this.size + prey.size) {
+        this.energy += 50;
+        this.eatenCount++;
+        
+        if (!this.isAdult && this.eatenCount >= 5) {
+          this.isAdult = true;
+          this.size = this.maxSize;
+        }
+        
+        return { type: 'omnivore', index: i };
+      }
+    }
+    
+    return null;
   }
-  
-  return null;
-}
 
   reproduce(other) {
     if (!this.isAdult || !other?.isAdult || 
@@ -470,7 +413,7 @@ class Omnivore {
     this.x = x;
     this.y = y;
     this.size = 10;
-    this.maxSize = 10;
+    this.maxSize = 15;
     this.speed = 1.2 + Math.random() * 2;
     this.energy = 100;
     this.type = 'omnivore';
@@ -481,9 +424,9 @@ class Omnivore {
     this.lifespan = 250 + Math.floor(Math.random() * 70);
     this.age = 0;
     this.reproductionDeathChance = 0.15;
-    this.escapeAngle = 0;
     this.escapeMode = false;
     this.escapeTimer = 0;
+    this.escapeAngle = 0;
   }
 
   findMate(omnivores) {
@@ -508,53 +451,32 @@ class Omnivore {
     return closestMate;
   }
 
- detectPredators(predators) {
-  for (const predator of predators) {
-    const dx = predator.x - this.x;
-    const dy = predator.y - this.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    
-    // Убегаем только от взрослых хищников
-    if (dist < 120 && predator.isAdult && !this.escapeMode) {
-      this.escapeMode = true;
-      this.escapeTimer = 25 + Math.floor(Math.random() * 15);
-      this.escapeAngle = Math.atan2(this.y - predator.y, this.x - predator.x);
-      return true;
+  checkDanger(predators) {
+    for (const predator of predators) {
+      const dx = predator.x - this.x;
+      const dy = predator.y - this.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      
+      if (dist < 150 && !this.escapeMode && !this.isAdult) {
+        this.escapeMode = true;
+        this.escapeTimer = 30 + Math.floor(Math.random() * 20);
+        this.escapeAngle = Math.atan2(this.y - predator.y, this.x - predator.x);
+        return true;
+      }
     }
+    return false;
   }
-  return false;
-}
 
   move(plants, herbivores, predators, omnivores) {
-  if (this.reproductionCooldown > 0) this.reproductionCooldown--;
-  
-  // Проверяем наличие хищников поблизости
-  let closestPredator = null;
-  let minPredatorDist = Infinity;
-  
-  for (const predator of predators) {
-    const dx = predator.x - this.x;
-    const dy = predator.y - this.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    
-    if (dist < minPredatorDist && dist < 150) {
-      minPredatorDist = dist;
-      closestPredator = predator;
-    }
-  }
-  
-  // Если хищник близко и мы взрослые, атакуем его, если он маленький
-  if (closestPredator && this.isAdult && !closestPredator.isAdult) {
-    const angle = Math.atan2(closestPredator.y - this.y, closestPredator.x - this.x);
-    this.x += Math.cos(angle) * this.speed;
-    this.y += Math.sin(angle) * this.speed;
-    return;
-  }
-    
-    this.detectPredators(predators);
-    
     if (this.escapeMode) {
       zigzagEscape(this);
+      return;
+    }
+    
+    if (this.reproductionCooldown > 0) this.reproductionCooldown--;
+    
+    // Проверка опасности (только для молодых всеядных)
+    if (!this.isAdult && this.checkDanger(predators)) {
       return;
     }
     
@@ -725,7 +647,7 @@ class Plant {
     this.id = id;
     this.x = x;
     this.y = y;
-    this.size = 6 + Math.random() * 6;
+    this.size = 6 + Math.random() * 4;
     this.type = 'plant';
     this.color = `hsl(90, 80%, 30%)`;
   }
@@ -761,16 +683,13 @@ function UnderwaterEvolution() {
   const resetSimulation = () => {
     const initialOrganisms = [];
     for (let i = 0; i < 5; i++) {
-      initialOrganisms.push(new Herbivore(i, Math.random() * (FIELD_WIDTH - 2*MARGIN) + MARGIN, 
-  Math.random() * (FIELD_HEIGHT - 2*MARGIN) + MARGIN));
+      initialOrganisms.push(new Herbivore(i, Math.random() * 1300, Math.random() * 840));
     }
     for (let i = 5; i < 10; i++) {
-      initialOrganisms.push(new Predator(i, Math.random() * (FIELD_WIDTH - 2*MARGIN) + MARGIN, 
-  Math.random() * (FIELD_HEIGHT - 2*MARGIN) + MARGIN));
+      initialOrganisms.push(new Predator(i, Math.random() * 1300, Math.random() * 840));
     }
     for (let i = 10; i < 15; i++) {
-      initialOrganisms.push(new Omnivore(i, Math.random() * (FIELD_WIDTH - 2*MARGIN) + MARGIN, 
-  Math.random() * (FIELD_HEIGHT - 2*MARGIN) + MARGIN));
+      initialOrganisms.push(new Omnivore(i, Math.random() * 1300, Math.random() * 840));
     }
     
     const initialPlants = [];
@@ -790,58 +709,43 @@ function UnderwaterEvolution() {
     setIsRunning(false);
   };
 
-const addOrganism = (type) => {
-  const count = addCounts[type];
-  const newOrganisms = []; // Перенесено перед циклом
-  
-  for (let i = 0; i < count; i++) {
-    const newOrganism = (() => {
-      switch(type) {
-        case 'herbivore':
-          return new Herbivore(
-            Date.now() + i, 
-            Math.random() * (FIELD_WIDTH - 2*MARGIN) + MARGIN,
-            Math.random() * (FIELD_HEIGHT - 2*MARGIN) + MARGIN
-          );
-        case 'predator':
-          return new Predator(
-            Date.now() + i,
-            Math.random() * (FIELD_WIDTH - 2*MARGIN) + MARGIN,
-            Math.random() * (FIELD_HEIGHT - 2*MARGIN) + MARGIN
-          );
-        case 'omnivore':
-          return new Omnivore(
-            Date.now() + i,
-            Math.random() * (FIELD_WIDTH - 2*MARGIN) + MARGIN,
-            Math.random() * (FIELD_HEIGHT - 2*MARGIN) + MARGIN
-          );
-        default:
-          return null;
-      }
-    })();
+  const addOrganism = (type) => {
+    const count = addCounts[type];
+    const newOrganisms = [];
     
-    if (newOrganism) {
-      newOrganisms.push(newOrganism);
+    for (let i = 0; i < count; i++) {
+      const newOrganism = (() => {
+        switch(type) {
+          case 'herbivore':
+            return new Herbivore(Date.now() + i, Math.random() * 1300, Math.random() * 840);
+          case 'predator':
+            return new Predator(Date.now() + i, Math.random() * 1300, Math.random() * 840);
+          case 'omnivore':
+            return new Omnivore(Date.now() + i, Math.random() * 1300, Math.random() * 840);
+          default:
+            return null;
+        }
+      })();
+      
+      if (newOrganism) {
+        newOrganisms.push(newOrganism);
+      }
     }
-  }
-  
-  setOrganisms(prev => [...prev, ...newOrganisms]);
-  setStats(prev => ({
-    ...prev,
-    [type + 's']: prev[type + 's'] + count
-  }));
-};
+    
+    setOrganisms(prev => [...prev, ...newOrganisms]);
+    setStats(prev => ({
+      ...prev,
+      [type + 's']: prev[type + 's'] + count
+    }));
+  };
 
   const addPlant = () => {
     const count = addCounts.plant;
     const newPlants = [];
     
     for (let i = 0; i < count; i++) {
-newPlants.push(new Plant(
-  Date.now() + i,
-  Math.random() * (FIELD_WIDTH - 2*MARGIN) + MARGIN,
-  Math.random() * (FIELD_HEIGHT - 2*MARGIN) + MARGIN
-));    }
+      newPlants.push(new Plant(Date.now() + i, Math.random() * 1300, Math.random() * 840));
+    }
     
     setPlants(prev => [...prev, ...newPlants]);
     setStats(prev => ({
@@ -868,7 +772,13 @@ newPlants.push(new Plant(
           }
           
           if (newOrg) {
-            Object.assign(newOrg, org);
+            newOrg.energy = org.energy;
+            newOrg.eatenCount = org.eatenCount;
+            newOrg.isAdult = org.isAdult;
+            newOrg.reproductionCooldown = org.reproductionCooldown;
+            newOrg.escapeMode = org.escapeMode;
+            newOrg.escapeTimer = org.escapeTimer;
+            newOrg.escapeAngle = org.escapeAngle;
             return newOrg;
           }
           return org;
@@ -909,8 +819,7 @@ newPlants.push(new Plant(
                 newPlants.splice(eaten.index, 1);
               } else {
                 const preyArray = eaten.type === 'herbivore' ? herbivores : 
-                                eaten.type === 'predator' ? predators :
-                                eaten.type === 'omnivore' ? omnivores : null;
+                                eaten.type === 'predator' ? predators : null;
                 if (preyArray) {
                   const preyId = preyArray[eaten.index].id;
                   const preyIndex = newOrganisms.findIndex(o => o.id === preyId);
@@ -946,22 +855,20 @@ newPlants.push(new Plant(
         
         const aliveOrganisms = newOrganisms.filter(o => o.energy > 0);
         
-        setPlants(prevPlants => {
-          const updatedPlants = [...prevPlants];
-          if (Math.random() > 0.95) {
-            updatedPlants.push(new Plant(Date.now(), Math.random() * 1290, Math.random() * 830));
-          }
-          return updatedPlants;
-        });
+        if (Math.random() > 0.7) {
+          newPlants.push(new Plant(Date.now(), Math.random() * 1300, Math.random() * 840));
+        }
         
         setStats(prev => ({
           ...prev,
           herbivores: aliveOrganisms.filter(o => o.type === 'herbivore').length,
           predators: aliveOrganisms.filter(o => o.type === 'predator').length,
           omnivores: aliveOrganisms.filter(o => o.type === 'omnivore').length,
-          plants: plants.length,
+          plants: newPlants.length,
           generation: prev.generation + 1
         }));
+        
+        setPlants(newPlants);
         
         return [...aliveOrganisms, ...organismsToAdd];
       });
@@ -970,50 +877,29 @@ newPlants.push(new Plant(
     return () => clearInterval(gameLoop);
   }, [isRunning, speedMultiplier, plants]);
    
- const renderScene = () => {
-  const canvas = canvasRef.current;
-  if (!canvas) return;
-  
-  const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, 1300, 840);
-  
-  // Рисуем фон
-  ctx.fillStyle = '#5c9eee';
-  ctx.fillRect(0, 0, 1300, 840);
-  
-  // Сначала рисуем растения
-  plants.forEach(plant => {
-    // Проверяем, используется ли растение как укрытие
-    const organismBehind = organisms.find(org => 
-      org.currentShelter && org.currentShelter.id === plant.id && org.hidden
-    );
+  const renderScene = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
     
-    // Подсвечиваем растение, если оно укрывает кого-то
-    ctx.fillStyle = organismBehind ? 'rgba(255, 255, 255, 0.8)' : plant.color;
-    ctx.beginPath();
-    ctx.arc(plant.x, plant.y, plant.size, 0, Math.PI * 2);
-    ctx.fill();
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, 1300, 840);
     
-    // Рисуем индикатор, если растение - укрытие
-    if (organismBehind) {
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.fillStyle = '#5c9eee';
+    ctx.fillRect(0, 0, 1300, 840);
+    
+    plants.forEach(plant => {
+      ctx.fillStyle = plant.color;
       ctx.beginPath();
-      ctx.arc(plant.x, plant.y, 3, 0, Math.PI * 2);
+      ctx.arc(plant.x, plant.y, plant.size, 0, Math.PI * 2);
       ctx.fill();
-    }
-  });
-  
-  // Рисуем организмы, которые не спрятаны
-  organisms.forEach(organism => {
-    if (organism.hidden) return; // Не рисуем спрятавшиеся организмы
-      
-      // Тело организма
+    });
+    
+    organisms.forEach(organism => {
       ctx.fillStyle = organism.color;
       ctx.beginPath();
       ctx.arc(organism.x, organism.y, organism.size, 0, Math.PI * 2);
       ctx.fill();
       
-      // Глаза
       ctx.fillStyle = 'white';
       ctx.beginPath();
       ctx.arc(
@@ -1032,7 +918,6 @@ newPlants.push(new Plant(
       );
       ctx.fill();
       
-      // Зрачки
       ctx.fillStyle = 'black';
       ctx.beginPath();
       ctx.arc(
@@ -1051,7 +936,6 @@ newPlants.push(new Plant(
       );
       ctx.fill();
       
-      // Золотая обводка для взрослых особей
       if (organism.isAdult) {
         ctx.strokeStyle = 'gold';
         ctx.lineWidth = 2;
@@ -1064,7 +948,7 @@ newPlants.push(new Plant(
 
   useEffect(() => {
     renderScene();
-  }, [organisms, plants, renderScene]);
+  }, [organisms, plants]);
 
   return (
     <div className="evolution-simulator">
@@ -1091,13 +975,20 @@ newPlants.push(new Plant(
           <div className="speed-control">
             <h2>Скорость: {speedMultiplier}x</h2>
             <input 
-  type="range" 
-  min="0.25"  // Минимальная скорость теперь 0.25x
-  max="4" 
-  step="0.25" // Шаг изменения скорости (0.25, 0.5, 0.75, 1, 1.25 и т.д.)
-  value={speedMultiplier} 
-  onChange={(e) => setSpeedMultiplier(parseFloat(e.target.value))} 
-/>
+              type="range" 
+              min="0.5" 
+              max="4" 
+              step="0.1"
+              value={speedMultiplier} 
+              onChange={(e) => setSpeedMultiplier(parseFloat(e.target.value))} 
+            />
+            <div className="speed-labels">
+              <span style={{ left: '0%' }}>0.5x</span>
+              <span style={{ left: '14.28%' }}>1x</span>
+              <span style={{ left: '42.85%' }}>2x</span>
+              <span style={{ left: '71.42%' }}>3x</span>
+              <span style={{ left: '100%', transform: 'translateX(-100%)' }}>4x</span>
+            </div>
           </div>
           
           <div className="add-organisms">
@@ -1149,7 +1040,6 @@ newPlants.push(new Plant(
               <input 
                 type="number" 
                 min="1" 
-               
                 max="100"
                 value={addCounts.plant}
                 onChange={(e) => setAddCounts(prev => ({
