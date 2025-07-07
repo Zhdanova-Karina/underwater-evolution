@@ -4,7 +4,7 @@ export default class Predator extends Organism {
   constructor(id, x, y) {
     super(id, x, y, 'predator', 'hsl(0, 80%, 50%)', {
       size: 10,
-      maxSize: 20,
+      maxSize: 10,
       speed: 1.5 + Math.random() * 2,
       lifespan: 200 + Math.floor(Math.random() * 50),
       reproductionDeathChance: 0.2,
