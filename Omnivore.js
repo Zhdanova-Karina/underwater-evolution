@@ -4,7 +4,7 @@ export default class Omnivore extends Organism {
   constructor(id, x, y) {
     super(id, x, y, 'omnivore', 'hsl(240, 80%, 60%)', {
       size: 10,
-      maxSize: 15,
+      maxSize: 10,
       speed: 1.5 + Math.random() * 2,
       lifespan: 250 + Math.floor(Math.random() * 70),
       reproductionDeathChance: 0.15,
