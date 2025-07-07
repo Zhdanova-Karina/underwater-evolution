@@ -1,4 +1,4 @@
-xport default class Coral {
+export default class Coral {
   constructor(id, x, y) {
     this.id = id;
     this.x = x;
@@ -20,6 +20,14 @@ xport default class Coral {
     if (this.maskedHerbivoreId && Math.random() < 0.05) {
       this.maskedHerbivoreId = null;
     }
+  }
+  // Проверка, может ли коралл принять травоядное
+  canAcceptHerbivore(herbivore) {
+    const dx = herbivore.x - this.x;
+    const dy = herbivore.y - this.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    
+    return dist < this.size && !this.maskedHerbivoreId;
   }
   // Проверка на попадание в загрязнение
   isAffectedBy(pollution) {
