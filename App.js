@@ -202,12 +202,10 @@ function UnderwaterEvolution() {
             herbivore.move(newPlants, herbivores, predators, omnivores, updatedCorals);
             const eaten = herbivore.eat(newPlants);
             
-            if (eaten?.type === 'plant') {
-              const plantIndex = newPlants.findIndex(p => p.id === eaten.id);
-              if (plantIndex !== -1) {
-                newPlants.splice(plantIndex, 1);
-              }
-            }
+            const eatenIndex = herbivore.eat(newPlants);
+          if (eatenIndex !== -1) {
+            newPlants.splice(eatenIndex, 1);
+          }
           }
         });
         
