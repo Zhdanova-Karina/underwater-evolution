@@ -162,10 +162,13 @@ function UnderwaterEvolution() {
           
           if (organism.type === 'herbivore') {
             organism.move(newPlants, herbivores, predators, omnivores);
-            const eatenIndex = organism.eat(newPlants);
-            if (eatenIndex !== -1) {
-              newPlants.splice(eatenIndex, 1);
-            }
+            const eaten = organism.eat(newPlants);
+if (eaten?.type === 'plant') {
+    const plantIndex = newPlants.findIndex(p => p.id === eaten.id);
+    if (plantIndex !== -1) {
+        newPlants.splice(plantIndex, 1);
+    }
+}
           } else if (organism.type === 'predator') {
             organism.move(herbivores, omnivores, predators);
             const eaten = organism.eat(herbivores, omnivores);
