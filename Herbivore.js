@@ -1,25 +1,94 @@
-import Organism from './Organism.js';
-import { checkBoundaries } from './utils.js';
+import { checkBoundaries, zigzagEscape } from './utils.js';
 
-
-export default class Herbivore extends Organism {
+export default class Herbivore {
   constructor(id, x, y) {
-    super(id, x, y, 'herbivore', 'hsl(120, 70%, 50%)', {
-      size: 10,
-      maxSize: 10,
-      speed: 1 + Math.random() * 3,
-      lifespan: 300 + Math.floor(Math.random() * 100),
-      initialEnergy: 200,
-      energyDecay: 0.2,
-      reproductionDeathChance: 0.1,
-      maturityThreshold: 3
-    });
-
+    // Обязательные свойства
+    this.id = id;
+    this.x = x;
+    this.y = y;
+    this.type = 'herbivore';
+    
+    // Физические параметры
+    this.size = 10;
+    this.speed = 1.5 + Math.random() * 3;
+    
+    // Энергия и жизненный цикл
+    this.energy = 200;
+    this.initialEnergy = 200;
+    this.energyDecay = 0.2;
+    this.lifespan = 300 + Math.floor(Math.random() * 100);
+    this.age = 0;
+    
+    // Размножение
+    this.isAdult = false;
+    this.eatenCount = 0;
+    this.maturityThreshold = 3;
+    this.reproductionCooldown = 0;
+    this.reproductionDeathChance = 0.1;
+    
+    // Маскировка
     this.canDisguise = Math.random() < 0.5;
     this.isDisguised = false;
-    this.disguiseColor = 'hsl(350, 70%, 60%)';
+    this.disguiseColor = 'hsl(71, 94.30%, 48.40%)';
     this.currentCoralId = null;
     this.baseColor = 'hsl(120, 70%, 50%)';
+    this.color = this.baseColor;
+  }
+  checkDanger(dangerousOrganisms) {
+    for (const danger of dangerousOrganisms) {
+      if (danger.isAdult || this.type === 'predator') {
+        const dx = danger.x - this.x;
+        const dy = danger.y - this.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        
+        if (dist < 150 && !this.escapeMode && (!this.isAdult || this.type !== 'predator')) {
+          this.escapeMode = true;
+          this.escapeTimer = 30 + Math.floor(Math.random() * 20);
+          this.escapeAngle = Math.atan2(this.y - danger.y, this.x - danger.x);
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+   basicMove(targets) {
+    if (this.escapeMode) {
+      zigzagEscape(this);
+      return;
+    }
+    
+    if (this.reproductionCooldown > 0) this.reproductionCooldown--;
+    
+    let closestTarget = null;
+    let minDist = Infinity;
+    
+    targets.forEach(target => {
+      const dx = target.x - this.x;
+      const dy = target.y - this.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      
+      if (dist < minDist && dist < 800) {
+        minDist = dist;
+        closestTarget = target;
+      }
+    });
+    
+    if (closestTarget) {
+      const angle = Math.atan2(closestTarget.y - this.y, closestTarget.x - this.x);
+      this.x += Math.cos(angle) * this.speed;
+      this.y += Math.sin(angle) * this.speed;
+    } else {
+      this.x += (Math.random() - 0.5) * this.speed * 2;
+      this.y += (Math.random() - 0.5) * this.speed * 2;
+    }
+    
+    checkBoundaries(this);
+    this.energy -= this.type === 'predator' ? 0.15 : (this.type === 'omnivore' ? 0.12 : 0.1);
+  }
+  checkAndGrow() {
+    if (!this.isAdult && this.eatenCount >= this.maturityThreshold) {
+      this.isAdult = true;
+    }
   }
 
   move(plants, herbivores, predators, omnivores, corals = []) {
@@ -49,7 +118,7 @@ export default class Herbivore extends Organism {
 
   handleDisguise(corals) {
     if (!corals.length) {
-      this.resetDisguise();
+      this.resetDisguise(corals);
       return;
     }
 
@@ -85,15 +154,20 @@ export default class Herbivore extends Organism {
       // Помечаем коралл как занятый
       closestCoral.maskedHerbivoreId = this.id;
     } else {
-      this.resetDisguise();
+      this.resetDisguise(corals);
     }
   }
 
-  resetDisguise() {
+  resetDisguise(corals = []) {
     if (this.isDisguised) {
       this.isDisguised = false;
       this.color = this.baseColor;
-      this.size = this.baseSize;
+     // Освобождаем коралл
+      if (this.currentCoralId) {
+        const coral = corals.find(c => c.id === this.currentCoralId);
+        if (coral) coral.maskedHerbivoreId = null;
+      }
+      
       this.currentCoralId = null;
     }
   }
@@ -171,5 +245,4 @@ export default class Herbivore extends Organism {
     partner.energy *= 0.8;
 
     return child;
-  }
-}
+  }};
