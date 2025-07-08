@@ -115,7 +115,7 @@ function UnderwaterEvolution() {
   };
 
   const addPlant = () => {
-    const count = addCounts.plant;
+    const count = Math.max(10, addCounts.plant); // Гарантируем минимум 10 растений
     const newPlants = [];
     
     for (let i = 0; i < count; i++) {
@@ -133,7 +133,6 @@ function UnderwaterEvolution() {
     if (!isRunning) return;
     
     const actualSpeed = baseSpeed / speedMultiplier;
-    
     const gameLoop = setInterval(() => {
       setOrganisms(prevOrganisms => {
         // Обновляем состояние всех организмов
@@ -215,7 +214,7 @@ function UnderwaterEvolution() {
         predators.forEach(predator => {
           if (predator.energy <= 0) return;
           
-          predator.move(herbivores, omnivores, predators);
+          predator.move(herbivores, omnivores, predators, corals);
           const eaten = predator.eat(herbivores, omnivores);
           
           if (eaten) {
@@ -232,7 +231,7 @@ function UnderwaterEvolution() {
         omnivores.forEach(omnivore => {
           if (omnivore.energy <= 0) return;
           
-          omnivore.move(newPlants, herbivores, predators, omnivores);
+          omnivore.move(newPlants, herbivores, predators, omnivores, corals);
           const eaten = omnivore.eat(newPlants, herbivores, predators);
           
           if (eaten) {
@@ -482,7 +481,7 @@ newOrganisms.forEach(org => {
 pollutions.forEach(pollution => {
   ctx.fillStyle = pollution.color;
   ctx.beginPath();
-  ctx.arc(pollution.x, pollution.y, pollution.size, 0, Math.PI * 2);
+  ctx.arc(pollution.x, pollution.y, pollution.currentSize, 0, Math.PI * 2);
   ctx.fill();
   
   // Добавляем эффект "грязи"
@@ -589,18 +588,30 @@ pollutions.forEach(pollution => {
             </div>
             
             <div className="add-control">
-              <input 
-                type="number" 
-                min="1" 
-                max="100"
-                value={addCounts.plant}
-                onChange={(e) => setAddCounts(prev => ({
-                  ...prev,
-                  plant: Math.max(1, parseInt(e.target.value) || 1)
-                }))}
-              />
-              <button onClick={addPlant}>Растение</button>
-            </div>
+  <input 
+    type="number" 
+    min="10"  // Минимальное значение в интерфейсе
+    max="100"
+    value={addCounts.plant < 10 ? 10 : addCounts.plant} // Принудительно показываем не менее 10
+    onChange={(e) => {
+      const value = parseInt(e.target.value);
+      // Если ввели меньше 10 или не число - ставим 10
+      const validatedValue = isNaN(value) || value < 10 ? 10 : Math.min(value, 100);
+      setAddCounts(prev => ({
+        ...prev,
+        plant: validatedValue
+      }));
+    }}
+    onBlur={(e) => {
+      // При потере фокуса корректируем значение
+      if (e.target.value < 10) {
+        e.target.value = 10;
+        setAddCounts(prev => ({ ...prev, plant: 10 }));
+      }
+    }}
+  />
+  <button onClick={addPlant}>Растение</button>
+</div>
             
             <div className="add-control">
               <input 
