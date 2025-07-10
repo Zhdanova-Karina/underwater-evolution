@@ -34,6 +34,8 @@ export default class Herbivore {
     this.baseColor = 'hsl(120, 70%, 50%)';
     this.color = this.baseColor;
   }
+
+  //Поиск опасных организмов поблизости
   checkDanger(dangerousOrganisms) {
     for (const danger of dangerousOrganisms) {
       if (danger.isAdult || this.type === 'predator') {
@@ -51,6 +53,8 @@ export default class Herbivore {
     }
     return false;
   }
+
+  //Базовое движение
    basicMove(targets) {
     if (this.escapeMode) {
       zigzagEscape(this);
@@ -85,12 +89,15 @@ export default class Herbivore {
     checkBoundaries(this);
     this.energy -= this.type === 'predator' ? 0.15 : (this.type === 'omnivore' ? 0.12 : 0.1);
   }
+
+  //Проверка взрослый ли организм
   checkAndGrow() {
     if (!this.isAdult && this.eatenCount >= this.maturityThreshold) {
       this.isAdult = true;
     }
   }
 
+  //Основной метод
   move(plants, herbivores, predators, omnivores, corals = []) {
     if (this.energy <= 0) return;
 
@@ -116,6 +123,7 @@ export default class Herbivore {
     this.checkAndGrow();
   }
 
+  //Пытаемся замаскироваться за ближайшим кораллом
   handleDisguise(corals) {
     if (!corals.length) {
       this.resetDisguise(corals);
@@ -158,6 +166,7 @@ export default class Herbivore {
     }
   }
 
+  //Освобождение от маскировки
   resetDisguise(corals = []) {
     if (this.isDisguised) {
       this.isDisguised = false;
@@ -172,8 +181,8 @@ export default class Herbivore {
     }
   }
 
+// Ищем ближайшую еду или партнера для размножения
   findTarget(plants, herbivores) {
-    // Ищем ближайшую еду или партнера для размножения
     let target = null;
     let minDist = Infinity;
 
@@ -190,7 +199,7 @@ export default class Herbivore {
     }
 
     // Если взрослый - ищем партнера для размножения
-    if (this.isAdult) {
+    if (this.isAdult&& this.reproductionCooldown <= 0) {
       for (const herb of herbivores) {
         if (herb.id === this.id || !herb.isAdult) continue;
 
@@ -208,6 +217,7 @@ export default class Herbivore {
     return target;
   }
 
+  //Питание
   eat(plants) {
     if (this.isDisguised || this.energy <= 0) return null;
 
@@ -227,6 +237,7 @@ export default class Herbivore {
     return null;
   }
 
+  //Размножение
   reproduce(partner) {
     if (!this.isAdult || !partner.isAdult) return null;
     if (this.reproductionCooldown > 0 || partner.reproductionCooldown > 0) return null;
@@ -239,8 +250,15 @@ export default class Herbivore {
     // Наследование свойств
     child.canDisguise = Math.random() < 0.8 ? (this.canDisguise || partner.canDisguise) : Math.random() < 0.3;
     
-    this.reproductionCooldown = 30;
-    partner.reproductionCooldown = 30;
+    this.reproductionCooldown = 100;
+    partner.reproductionCooldown = 100;
+    // Добавляем отталкивание
+  const repelAngle = Math.atan2(this.y - partner.y, this.x - partner.x);
+  const repelForce = 5;
+   this.x += Math.cos(repelAngle) * repelForce;
+  this.y += Math.sin(repelAngle) * repelForce;
+  partner.x -= Math.cos(repelAngle) * repelForce;
+  partner.y -= Math.sin(repelAngle) * repelForce;
     this.energy *= 0.8;
     partner.energy *= 0.8;
 
