@@ -1,18 +1,21 @@
 /* App.css */
+/* Основные стили для всего приложения */
 .evolution-simulator {
   font-family: 'Arial', sans-serif;
-  max-width: 1800px;
-  margin: 0 auto;
+  max-width: 1800px;/* Максимальная ширина контейнера */
+  margin: 0 auto; /* Центрирование по горизонтали */
   padding: 20px;
   text-align: center;
-  background-color: #f0f8ff;
+  background-color: #cce1f3; /* Светло-голубой фон */
 }
 
+/* Стили для заголовка */
 h1 {
   color: #1e3f66;
   margin-bottom: 20px;
 }
 
+/* Контейнер для основной части симуляции */
 .simulation-container {
   display: flex;
   justify-content: center;
@@ -31,7 +34,7 @@ h1 {
   align-self: flex-start; /* Чтобы панель не растягивалась по высоте */
 }
 
-/* Обновленный блок управления*/
+/* Блок управления*/
 .controls-panel {
   display: flex;
   flex-direction: column;
@@ -43,12 +46,14 @@ h1 {
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
+/* Стили для канваса симуляции */
 .simulation-canvas {
   border: 2px solid #5c9eee;
   border-radius: 5px;
   background-color: #5c9eee;
 }
 
+/* Общие стили для блоков статистики и управления */
 .stats, .speed-control, .add-organisms, .add-plants, .simulation-controls {
   background-color: white;
   padding: 15px;
@@ -56,21 +61,25 @@ h1 {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
+/* Стили для текста статистики */
 .stats p {
   margin: 5px 0;
   text-align: left;
 }
 
+/* Стили для контроля скорости */
 .speed-control input {
   width: 100%;
 }
 
+/* Стили для блоков добавления организмов и растений */
 .add-organisms, .add-plants, .simulation-controls {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
+/* Базовые стили для кнопок */
 button {
   padding: 10px;
   background-color: #2a9df4;
@@ -82,22 +91,26 @@ button {
   transition: background-color 0.3s;
 }
 
+/* Состояние при наведении на кнопку */
 button:hover {
   background-color: #1e3f66;
 }
 
+/* Эффект нажатия кнопки */
 button:active {
   transform: scale(0.98);
 }
 
+/* Специальные стили для кнопок управления симуляцией */
 .simulation-controls button {
-  background-color: #4CAF50;
+  background-color: #4CAF50; /*Старт/Пауза*/
 }
 
 .simulation-controls button:last-child {
-  background-color: #f44336;
+  background-color: #f44336; /*Сбросить*/
 }
 
+/* Дополнительные стили для контроля скорости */
 .speed-control {
   position: relative;
   padding-bottom: 10px;
@@ -122,6 +135,7 @@ button:active {
   margin: 5px 0;
 }
 
+/* Стили для элементов добавления организмов */
 .add-control {
   display: flex;
   gap: 10px;
@@ -145,6 +159,8 @@ button:active {
 .add-control button {
   flex-grow: 1;
 }
+
+/* Стили для управления окружающей средой */
 .environment-controls {
   margin-top: 20px;
   padding: 10px;
@@ -162,6 +178,7 @@ button:active {
   margin-top: 5px;
 }
 
+/* Эффект при наведении на кнопки управления средой */
 .environment-controls button:hover {
   background-color: #1e3f66;
 }
