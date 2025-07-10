@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import './App.css';
 import Herbivore from './Herbivore';
 import Predator from './Predator';
@@ -6,23 +6,26 @@ import Omnivore from './Omnivore';
 import Plant from './Plant';
 import Pollution from './Pollution';
 import Coral from './Coral';
-import { checkBoundaries, zigzagEscape } from './utils';
 
 function UnderwaterEvolution() {
-  const canvasRef = useRef(null);
-  const [organisms, setOrganisms] = useState([]);
-  const [plants, setPlants] = useState([]);
-  const [isRunning, setIsRunning] = useState(false);
-  const [speedMultiplier, setSpeedMultiplier] = useState(1);
-  const [corals, setCorals] = useState([]);
-  const [stats, setStats] = useState({
+  const canvasRef = useRef(null); // Ссылка на canvas элемент для отрисовки
+  // Состояния приложения
+  const [organisms, setOrganisms] = useState([]); // Массив всех организмов
+  const [plants, setPlants] = useState([]); // Массив растений
+  const [isRunning, setIsRunning] = useState(false); // Флаг работы симуляции
+  const [speedMultiplier, setSpeedMultiplier] = useState(1);  // Множитель скорости
+  const [corals, setCorals] = useState([]); // Массив кораллов
+  const [pollutions, setPollutions] = useState([]); // Массив загрязнений
+  // Статистика симуляции
+  const [stats, setStats] = useState({ 
     herbivores: 0,
     predators: 0,
     omnivores: 0,
     plants: 0,
     generation: 0
   });
-  
+   
+  // Количество добавляемых элементов
   const [addCounts, setAddCounts] = useState({
     herbivore: 1,
     predator: 1,
@@ -31,44 +34,50 @@ function UnderwaterEvolution() {
     coral: 1
   });
 
-  const baseSpeed = 100;
-  const [pollutions, setPollutions] = useState([]);
+  const baseSpeed = 100; // Базовая скорость обновления (мс)
 
+  // Функция добавления загрязнения
   const addPollution = () => {
     const newPollution = new Pollution(
-      Date.now(),
-      Math.random() * 1200 + 50,
-      Math.random() * 700 + 50
+      Date.now(),// Уникальный ID
+      Math.random() * 1200 + 50, // Случайная позиция X
+      Math.random() * 700 + 50    // Случайная позиция Y
     );
     setPollutions(prev => [...prev, newPollution]);
   };
 
+ // Инициализация симуляции при монтировании
   useEffect(() => {
     resetSimulation();
   }, []);
 
+  // Сброс симуляции к начальному состоянию
   const resetSimulation = () => {
+    // Создаем начальные организмы
     const initialOrganisms = [];
+    // 20 травоядных
     for (let i = 0; i < 20; i++) {
       initialOrganisms.push(new Herbivore(i, Math.random() * 1300, Math.random() * 840));
     }
+    // 8 хищников
     for (let i = 20; i < 28; i++) {
       initialOrganisms.push(new Predator(i, Math.random() * 1300, Math.random() * 840));
     }
+     // 8 всеядных
     for (let i = 28; i < 36; i++) {
       initialOrganisms.push(new Omnivore(i, Math.random() * 1300, Math.random() * 840));
     }
-    
+    // 100 растений
     const initialPlants = [];
-    for (let i = 0; i < 50; i++) {
+    for (let i = 0; i < 100; i++) {
       initialPlants.push(new Plant(i, Math.random() * 1300, Math.random() * 840));
     }
-    
+     // 10 кораллов
     const initialCorals = [];
     for (let i = 0; i < 10; i++) {
       initialCorals.push(new Coral(i, Math.random() * 1300, Math.random() * 840));
     }
-    
+     // Устанавливаем начальные состояния
     setOrganisms(initialOrganisms);
     setPlants(initialPlants);
     setCorals(initialCorals);
@@ -77,17 +86,18 @@ function UnderwaterEvolution() {
       herbivores: 20,
       predators: 8,
       omnivores: 8,
-      plants: 50,
+      plants: 100,
       corals: 10,
       generation: 0
     });
     setIsRunning(false);
   };
 
+// Добавление нового организма
   const addOrganism = (type) => {
     const count = addCounts[type];
     const newOrganisms = [];
-    
+    // Создаем указанное количество организмов
     for (let i = 0; i < count; i++) {
       const newOrganism = (() => {
         switch(type) {
@@ -106,7 +116,7 @@ function UnderwaterEvolution() {
         newOrganisms.push(newOrganism);
       }
     }
-    
+    // Обновляем состояние
     setOrganisms(prev => [...prev, ...newOrganisms]);
     setStats(prev => ({
       ...prev,
@@ -114,6 +124,7 @@ function UnderwaterEvolution() {
     }));
   };
 
+ // Добавление новых растений
   const addPlant = () => {
     const count = Math.max(10, addCounts.plant); // Гарантируем минимум 10 растений
     const newPlants = [];
@@ -129,6 +140,7 @@ function UnderwaterEvolution() {
     }));
   };
 
+  // Основной цикл симуляции
   useEffect(() => {
     if (!isRunning) return;
     
@@ -138,6 +150,7 @@ function UnderwaterEvolution() {
         // Обновляем состояние всех организмов
         const newOrganisms = prevOrganisms.map(org => {
           let newOrg;
+          // Создаем новый экземпляр для каждого типа организма
           if (org.type === 'herbivore') {
             newOrg = new Herbivore(org.id, org.x, org.y);
             Object.assign(newOrg, org);
@@ -161,7 +174,7 @@ function UnderwaterEvolution() {
           return newCoral;
         });
         
-        
+        // Фильтруем организмы по типам
         const herbivores = newOrganisms.filter(o => o.type === 'herbivore');
         const predators = newOrganisms.filter(o => o.type === 'predator');
         const omnivores = newOrganisms.filter(o => o.type === 'omnivore');
@@ -278,12 +291,12 @@ const updatedPollutions = pollutions
   .map(p => {
     const newP = new Pollution(p.id, p.x, p.y);
     Object.assign(newP, p);
-    newP.update(); // Это теперь будет изменять размер и прозрачность
+    newP.update();
     return newP;
   })
   .filter(p => p.isActive); // Удаляем неактивные
         
-        // Удаляем организмы, растения и кораллы, попавшие в загрязнение
+// Фильтрация объектов, попавших в загрязнение
 const updatedPlants = newPlants.filter(plant => {
   return !updatedPollutions.some(pollution => 
     pollution.isPointInside(plant.x, plant.y)
@@ -309,11 +322,11 @@ newOrganisms.forEach(org => {
     org.resetDisguise();
   }
 });
-        
+        // Обновление состояний
         setPlants(updatedPlants);
         setPollutions(updatedPollutions);
         setCorals(updatedCoralsPollution);
-        
+         // Обновление статистики
         setStats(prev => ({
           ...prev,
           herbivores: updatedOrganisms.filter(o => o.type === 'herbivore').length,
@@ -330,8 +343,8 @@ newOrganisms.forEach(org => {
 
     return () => clearInterval(gameLoop);
   }, [isRunning, speedMultiplier, plants, pollutions, corals]);
-
-  const renderScene = () => {
+// Функция отрисовки сцены
+  const renderScene = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     
@@ -500,15 +513,15 @@ pollutions.forEach(pollution => {
     ctx.fill();
   }
 });
-  };
+   }, [organisms, plants, corals, pollutions]);
 
   useEffect(() => {
     renderScene();
-  }, [organisms, plants, corals, pollutions]);
+  }, [renderScene]);
 
   return (
     <div className="evolution-simulator">
-      <h1>Эволюция Подводного Мира</h1>
+      <h1>Естественный Отбор Подводного Мира</h1>
       
       <div className="simulation-container">
         <div className="stats-panel">
