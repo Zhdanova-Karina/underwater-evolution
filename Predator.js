@@ -20,8 +20,10 @@ export default class Predator {
     this.escapeMode = false;
     this.escapeTimer = 0;
     this.escapeAngle = 0;
+    this.maturityThreshold = 5;
   }
 
+  //Поиск партнёра
   findMate(predators) {
     if (!this.isAdult || this.reproductionCooldown > 0) return null;
     
@@ -44,6 +46,7 @@ export default class Predator {
     return closestMate;
   }
 
+  //Поиск опасных организмов поблизости
   checkDanger(omnivores) {
     for (const omnivore of omnivores) {
       if (omnivore.isAdult) {
@@ -62,7 +65,36 @@ export default class Predator {
     return false;
   }
 
-  move(herbivores, omnivores, predators) {
+checkLineOfSight(prey, corals) {
+  // Проверяем, есть ли прямая видимость между хищником и добычей
+  const dx = prey.x - this.x;
+  const dy = prey.y - this.y;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  
+  // Нормализованный вектор направления
+  const nx = dx / dist;
+  const ny = dy / dist;
+  
+  // Проверяем пересечение с каждым кораллом
+  for (const coral of corals) {
+    // Упрощенная проверка пересечения линии и круга (коралла)
+    const a = nx * nx + ny * ny;
+    const b = 2 * (nx * (this.x - coral.x) + ny * (this.y - coral.y));
+    const c = (this.x - coral.x) ** 2 + (this.y - coral.y) ** 2 - coral.size ** 2;
+    
+    const discriminant = b * b - 4 * a * c;
+    
+    if (discriminant >= 0) {
+      // Линия пересекает коралл - нет прямой видимости
+      return false;
+    }
+  }
+  
+  return true;
+}
+
+//Основной метод
+  move(herbivores, omnivores, predators,corals) {
     if (this.escapeMode) {
       zigzagEscape(this);
       return;
@@ -84,7 +116,7 @@ export default class Predator {
       const dy = prey.y - this.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
       
-      if (dist < minDist && dist < 300) {
+      if (dist < minDist && dist < 300 && this.checkLineOfSight(prey, corals)) {
         minDist = dist;
         closestPrey = prey;
       }
@@ -118,6 +150,7 @@ export default class Predator {
     this.energy -= 0.15;
   }
   
+  //Питание
   eat(herbivores, omnivores) {
     for (let i = 0; i < herbivores.length; i++) {
       const prey = herbivores[i];
@@ -129,7 +162,7 @@ export default class Predator {
         this.energy += 50;
         this.eatenCount++;
         
-        if (!this.isAdult && this.eatenCount >= 5) {
+        if (!this.isAdult && this.eatenCount >= this.maturityThreshold) {
           this.isAdult = true;
         }
         
@@ -147,7 +180,7 @@ export default class Predator {
         this.energy += 50;
         this.eatenCount++;
         
-        if (!this.isAdult && this.eatenCount >= 5) {
+        if (!this.isAdult && this.eatenCount >= this.maturityThreshold) {
           this.isAdult = true;
         }
         
@@ -158,6 +191,8 @@ export default class Predator {
     return null;
   }
 
+
+  //Размножение
   reproduce(other) {
     if (!this.isAdult || !other?.isAdult || 
         this.reproductionCooldown > 0 || 
